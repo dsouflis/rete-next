@@ -1,0 +1,25 @@
+{
+  "name": "rete",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "dist/app.js",
+  "scripts": {
+    "compile": "tsc",
+    "start": "tsc && node dist/index.js",
+    "lint": "eslint .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@typescript-eslint/eslint-plugin": "^5.4.0",
+    "@typescript-eslint/parser": "^5.4.0",
+    "eslint": "^9.7.0",
+    "globals": "^15.8.0",
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^7.16.0"
+  }
+}
