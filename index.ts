@@ -94,7 +94,7 @@ function printFieldType(field: WMEFieldType) {
 }
 
 // pg 21
-class WME {
+export class WME {
     fields: string[] = ['','',''];
     get_field(ty: WMEFieldType) : string {
         assert.strict(ty !== WMEFieldType.None);
@@ -132,7 +132,7 @@ class AlphaMemory {
 }
 
 // pg 14
-class ConstTestNode {
+export class ConstTestNode { //ds: Exported to facilitate unit tests
   field_to_test: WMEFieldType;
   field_must_equal: string;
   output_memory: AlphaMemory | null;
@@ -347,7 +347,7 @@ class ProductionNode extends BetaMemory {
 }
 
 // no page; hold all global state
-class Rete {
+export class Rete {
   alpha_top: ConstTestNode;
   // alphabetically ordered for ease of use
   alphamemories: AlphaMemory[] = [];
@@ -396,7 +396,7 @@ function const_test_node_activation(node: ConstTestNode, w: WME) {
 }
 
 // pg 14
-function addWME(r: Rete, w: WME) {
+export function addWME(r: Rete, w: WME) {
   r.working_memory.push(w);
   const_test_node_activation(r.alpha_top, w);
 }
@@ -454,7 +454,7 @@ enum FieldType {
 }
 
 // inferred from discussion
-class Field {
+export class Field {
   type: FieldType;
   v: string;
 
@@ -473,7 +473,7 @@ class Field {
 }
 
 // inferred from discussion
-class Condition {
+export class Condition {
   attrs: Field[];
 
   constructor(ident: Field, attr: Field, val: Field) {
@@ -599,7 +599,7 @@ function build_or_share_alpha_memory_hashed(r: Rete, c: Condition) {
 
 // pg 37
 // - inferred type of production node:
-function add_production(r: Rete, lhs: Condition[], rhs: string) {
+export function add_production(r: Rete, lhs: Condition[], rhs: string) {
   // pseudocode: pg 33
   // M[1] <- dummy-top-node
   // build/share J[1] (a child of M[1]), the join node for c[1]
@@ -636,211 +636,3 @@ function add_production(r: Rete, lhs: Condition[], rhs: string) {
   update_new_node_with_matches_from_above(prod);
   return prod;
 }
-
-
-//================================================================
-
-// add simple WME to match a production with 1 element.
-// First add production, then add WME
-function test1() {
-  console.log("====test1:====\n");
-  const w1 = new WME("B1", "on", "B2");
-  const w2 = new WME("B1", "on", "B3");
-  const w3 = new WME("B1", "color", "red");
-  const w4 = new WME("B2", "on", "table");
-
-  const rete = new Rete();
-
-  // rete.working_memory.push_back(WME("B1", "color", "red"));
-  // rete.working_memory.push_back(WME("B1", "on", "table"));
-  // rete.working_memory.push_back(WME("B2", "left-of", "B3"));
-  // rete.working_memory.push_back(WME("B2", "color", "blue"));
-  // rete.working_memory.push_back(WME("B3", "left-of", "B4"));
-  // rete.working_memory.push_back(WME("B3", "on", "table"));
-  // rete.working_memory.push_back(WME("B3", "color", "red"));
-  // rete.working_memory.push_back(WME("id", "attr", "val"));
-
-  console.log("adding production\n");
-
-  let lhs = [new Condition(
-    Field.var("x"),
-    Field.constant("on"),
-    Field.var("y"))];
-  const p = add_production(rete, lhs, "prod1");
-
-  console.log("added production\n");
-
-  addWME(rete, new WME("B1", "on", "B2"));
-  assert.strict(p.items.length == 1);
-
-  addWME(rete, new WME("B1", "on", "B3"));
-  assert.strict(p.items.length as unknown as number == 2);
-
-  console.log("====\n");
-}
-
-
-// add simple WME to match a production with 1 element.
-// First add WME, then add production
-function test2() {
-  console.log("====test2:====\n");
-  const rete = new Rete();
-
-
-  addWME(rete, new WME("B1", "on", "B2"));
-  addWME(rete, new WME("B1", "on", "B3"));
-
-  let lhs = [new Condition(
-    Field.var("x"),
-    Field.constant("on"),
-    Field.var("y"))];
-  const p = add_production(rete, lhs,"prod1");
-
-  assert.strict(p.items.length == 2);
-
-  console.log("====\n");
-
-}
-
-// add simple WME to match a production with 1 element.
-// First add WME, then add production
-// mismatches also exist.
-function test3() {
-  console.log("====test3:====\n");
-
-  const rete = new Rete();
-
-  addWME(rete, new WME("B1", "on", "B2"));
-  addWME(rete, new WME("B1", "on", "B3"));
-  addWME(rete, new WME("B1", "color", "red"));
-
-  let lhs = [new Condition(
-    Field.var("x"),
-    Field.constant("on"),
-    Field.var("y"))];
-  const p1 = add_production(rete, lhs,"prod1");
-
-  assert.strict(p1.items.length == 2);
-
-  console.log("====\n");
-
-}
-
-// Test repeated node variables: (x on x)
-// NOTE: I can't find a single place where they actually handle
-// this case, which makes me suspect that this case is *NOT HANDLED*
-// by the rete exposition I'm following.
-function test4_disabled() {
-  console.log("====test4:====\n");
-
-  const rete = new Rete();
-
-  addWME(rete, new WME("B1", "on", "B2"));
-  addWME(rete, new WME("B1", "on", "B3"));
-  addWME(rete, new WME("B1", "on", "B1")); // MATCH
-  addWME(rete, new WME("B1", "color", "red"));
-
-  let lhs = [new Condition(
-    Field.var("x"),
-    Field.constant("on"),
-    Field.var("x"))];
-  const p1 = add_production(rete, lhs,"prod1");
-
-  assert.strict(p1.items.length == 1);
-
-  console.log("====\n");
-
-}
-// test a production with 2 conditions. This will
-// test chaining of join nodes.
-// only (B1 on B2) (B2 left-of B3) ought to join.
-// Add WME, then add production
-function test5() {
-  console.log("====test 5:====\n");
-
-  const rete = new Rete();
-
-  addWME(rete, new WME("B1", "on", "B2"));
-  addWME(rete, new WME("B1", "on", "B3"));
-  addWME(rete, new WME("B2", "left-of", "B3"));
-
-  const conds: Condition[] = [];
-  conds.push(new Condition(Field.var("x"), Field.constant("on"),
-    Field.var("y")));
-  conds.push(new Condition(Field.var("y"), Field.constant("left-of"),
-    Field.var("z")));
-
-  const p1 = add_production(rete, conds, "prod1");
-  assert.strict(p1.items.length == 1);
-
-  console.log("====\n");
-}
-
-// Same as test5, but opposite order:
-// Add production, then add WME
-function test6() {
-  console.log("====test6:====\n");
-
-  const rete = new Rete();
-
-
-  const conds: Condition[] = [];
-  conds.push(new Condition(Field.var("x"), Field.constant("on"),
-    Field.var("y")));
-  conds.push(new Condition(Field.var("y"), Field.constant("left-of"),
-    Field.var("z")));
-
-  const p1 = add_production(rete, conds, "prod1");
-
-  addWME(rete, new WME("B1", "on", "B2"));
-  addWME(rete, new WME("B1", "on", "B3"));
-  addWME(rete, new WME("B2", "left-of", "B3"));
-
-  assert.strict(p1.items.length == 1);
-
-  console.log("====\n");
-}
-
-function test_from_paper() {
-  console.log("====test from paper:====\n");
-
-  const rete = new Rete();
-
-  addWME(rete, new WME("B1", "on", "B2"));
-  addWME(rete, new WME("B1", "on", "B3"));
-  addWME(rete, new WME("B1", "on", "B1"));
-  addWME(rete, new WME("B1", "color", "red"));
-
-  const conds: Condition[] = [];
-  conds.push(new Condition(Field.var("x"), Field.constant("on"),
-    Field.var("y")));
-  conds.push(new Condition(Field.var("y"), Field.constant("left-of"),
-    Field.var("z")));
-  conds.push(new Condition(Field.var("z"), Field.constant("color"),
-    Field.constant("red")));
-  conds.push(new Condition(Field.var("a"), Field.constant("color"),
-    Field.constant("maize")));
-  conds.push(new Condition(Field.var("b"), Field.constant("color"),
-    Field.constant("blue")));
-  conds.push(new Condition(Field.var("c"), Field.constant("color"),
-    Field.constant("green")));
-  conds.push(new Condition(Field.var("d"), Field.constant("color"),
-    Field.constant("white")));
-  conds.push(new Condition(Field.var("s"), Field.constant("on"),
-    Field.constant("table")));
-  conds.push(new Condition(Field.var("y"), Field.var("a"),
-  Field.var("b")));
-  conds.push(new Condition(Field.var("a"), Field.constant("left-of"),
-    Field.var("d")));
-  add_production(rete, conds, "prod1");
-
-  console.log("====\n");
-}
-
-test1();
-test2();
-test3();
-// test4_disabled()
-test5();
-test6();
-test_from_paper();

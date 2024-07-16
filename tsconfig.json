@@ -2,11 +2,12 @@
   "compilerOptions": {
     "target": "es2016",
     "module": "esnext",
-     "outDir": "./dist",
+    "outDir": "./dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-
+    "sourceMap": true,
     "strict": true,
+    "declaration": true,
     "skipLibCheck": true
   }
 }
