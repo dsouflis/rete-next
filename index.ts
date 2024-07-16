@@ -104,7 +104,7 @@ export class WME {
         this.fields[WMEFieldType.Val] = val;
     }
 
-    print() {
+    toString() {
       let s = "(";
       for(let f = 0; f < WMEFieldType.NumFields; ++f) {
           s += this.fields[f];
@@ -120,9 +120,9 @@ class AlphaMemory {
   items: WME[] = []
   successors: JoinNode[] = [];
 
-  print() {
+  toString() {
     let s: string = "(alpha-memory:" + this.items.length + " ";
-    for (const wme of this.items) s += wme.print() + " ";
+    for (const wme of this.items) s += wme + " ";
     s += ")";
     return s;
   }
@@ -139,7 +139,7 @@ export abstract class TestNode { //ds: Exported to facilitate unit tests
     this.output_memory = (output_memory);
   }
 
-  abstract print(): string;
+  abstract toString(): string;
 
   abstract testWme(w: WME) : boolean;
 }
@@ -149,7 +149,7 @@ export class DummyTestNode extends TestNode {
     super(null);
   }
 
-  print() {
+  toString() {
     return "(const-test dummy)";
   }
 
@@ -172,7 +172,7 @@ export class ConstTestNode extends TestNode  {
     this.field_must_equal = field_must_equal;
   }
 
-  print() {
+  toString() {
     return "(const-test " + printFieldType(this.field_to_test) + " =? " + this.field_must_equal + ")";
   }
 
@@ -195,7 +195,7 @@ export class IntraTestNode extends TestNode {
     return w.fields[this.first_field] === w.fields[this.second_field];
   }
 
-  print() {
+  toString() {
     return "(const-test " + printFieldType(this.first_field) + " == " + this.second_field + ")";
   }
 }
@@ -232,11 +232,11 @@ class Token {
     return this.parent!.index(ix);
   }
 
-  print() {
+  toString() {
     let s = "(";
     for(let p: Token | null = this; p !== null; p = p.parent) {
       assert.strict(p.wme);
-      s += (p.wme.print());
+      s += (p.wme);
       if (p.parent !== null) { s += "->";}
     }
     s += ")";
@@ -264,10 +264,10 @@ class BetaMemory {
     }
   }
 
-  print() {
+  toString() {
     let s  = "(beta-memory items:";
     for(let item of this.items) {
-      s += item.print() + ' ';
+      s += item + ' ';
     }
     s += "| " + this.children.length + " children";
     s += ")";
@@ -293,7 +293,7 @@ class TestAtJoinNode {
       this.ix_in_token_of_arg2 == other.ix_in_token_of_arg2;
   }
 
-  print() {
+  toString() {
     let s  = "(test-at-join ";
     s += this.field_of_arg1 + " ==  " +
       this.ix_in_token_of_arg2 + "[" + this.field_of_arg2  + "]";
@@ -353,10 +353,10 @@ class JoinNode {
     return true;
   }
 
-  print() {
+  toString() {
     let s = "(join";
     for (const test of this.tests) {
-      s += test.print();
+      s += test;
     }
     s += ")";
     return s;
@@ -375,10 +375,10 @@ class ProductionNode extends BetaMemory {
   join_activation(t: Token, w: WME) {
     t = new Token(w, t);
     this.items.push(t);
-    console.log("## (PROD " + t.print() + " ~ " + this.rhs + ") ##\n");
+    console.log("## (PROD " + t + " ~ " + this.rhs + ") ##\n");
   }
 
-  print() {
+  toString() {
     return "(production " + this.rhs + ")";
   }
 }
@@ -407,7 +407,7 @@ export class Rete {
 // pg 21
 function alpha_memory_activation(node: AlphaMemory, w: WME) {
   node.items = [(w), ...node.items];
-  console.log("alpha_memory_activation" + "| node: " + node.print() + " | wme: " + w.print() + "\n");
+  console.log("alpha_memory_activation" + "| node: " + node + " | wme: " + w + "\n");
   for (const child of node.successors) child.alpha_activation(w);
 
 }
@@ -415,7 +415,7 @@ function alpha_memory_activation(node: AlphaMemory, w: WME) {
 // pg 15
 // return whether test succeeded or not.
 function const_test_node_activation(node: TestNode, w: WME) {
-  console.log ("const_test_node_activation" + "| node: " + node.print() + " | wme: " + w.print() + "\n");
+  console.log ("const_test_node_activation" + "| node: " + node + " | wme: " + w + "\n");
   if (!node.testWme(w)) {
     return false;
   }
@@ -453,7 +453,7 @@ function build_or_share_beta_memory_node(r: Rete, parent: JoinNode) {
 
   const newbeta = new BetaMemory(parent);
   r.betamemories.push(newbeta);
-  console.log(`build_or_share_beta_memory_node newBeta: %${newbeta.print()} | parent: %${newbeta.parent.print()}\n`);
+  console.log(`build_or_share_beta_memory_node newBeta: %${newbeta} | parent: %${newbeta.parent}\n`);
   //newbeta->children = nullptr;
   //newbeta->items = nullptr;
   parent.children.push(newbeta);
@@ -579,7 +579,7 @@ function build_or_share_constant_test_node(
   // build a new node
   const newnode = new ConstTestNode(f, sym, null);;
   r.consttestnodes.push(newnode);
-  console.log(`build_or_share_constant_test_node newconsttestnode: %${newnode.print()}\n`);
+  console.log(`build_or_share_constant_test_node newconsttestnode: %${newnode}\n`);
   parent.children.push(newnode);
   // newnode->field_to_test = f; newnode->field_must_equal = sym;
   // newnode->output_memory = nullptr;
@@ -605,7 +605,7 @@ function build_or_share_intra_test_node(
   // build a new node
   const newnode = new IntraTestNode(f1, f2, null);;
   r.consttestnodes.push(newnode);
-  console.log(`build_or_share_intra_test_node newconsttestnode: %${newnode.print()}\n`);
+  console.log(`build_or_share_intra_test_node newconsttestnode: %${newnode}\n`);
   parent.children.push(newnode);
   // newnode->field_to_test = f; newnode->field_must_equal = sym;
   // newnode->output_memory = nullptr;
@@ -694,7 +694,7 @@ export function add_production(r: Rete, lhs: Condition[], rhs: string) {
   // build a new production node, make it a child of current node
   const prod = new ProductionNode(currentJoin, rhs);
   r.productions.push(prod);
-  console.log(`add_production prod: %${prod.print()} | parent: %${prod.parent.print()}\n`);
+  console.log(`add_production prod: %${prod} | parent: %${prod.parent}\n`);
   currentJoin.children.push(prod);
   // update new-node-with-matches-from-above (the new production node)
   update_new_node_with_matches_from_above(prod);
