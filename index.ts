@@ -75,7 +75,6 @@ import { strict as assert } from 'assert';
 //   show (Production cond act) = brackets [show cond, "-->", show act]
 
 enum WMEFieldType {
-  None = (-1),
   Ident = 0,
   Attr = 1,
   Val = 2,
@@ -87,7 +86,6 @@ function printFieldType(field: WMEFieldType) {
     case WMEFieldType.Ident: return "id";
     case WMEFieldType.Attr: return"attr";
     case WMEFieldType.Val: return "val";
-    case WMEFieldType.None: return "none";
     case WMEFieldType.NumFields: return "num-fields";
   }
   return '';
@@ -97,7 +95,6 @@ function printFieldType(field: WMEFieldType) {
 export class WME {
     fields: string[] = ['','',''];
     get_field(ty: WMEFieldType) : string {
-        assert.strict(ty !== WMEFieldType.None);
         return this.fields[ty];
     }
 
@@ -132,36 +129,76 @@ class AlphaMemory {
 }
 
 // pg 14
-export class ConstTestNode { //ds: Exported to facilitate unit tests
+export abstract class TestNode { //ds: Exported to facilitate unit tests
+  output_memory: AlphaMemory | null;
+  children: TestNode[] = [];
+
+  constructor(
+    output_memory: AlphaMemory | null
+  ) {
+    this.output_memory = (output_memory);
+  }
+
+  abstract print(): string;
+
+  abstract testWme(w: WME) : boolean;
+}
+
+export class DummyTestNode extends TestNode {
+  constructor() {
+    super(null);
+  }
+
+  print() {
+    return "(const-test dummy)";
+  }
+
+  testWme(w: WME): boolean {
+    return true;
+  }
+}
+
+export class ConstTestNode extends TestNode  {
   field_to_test: WMEFieldType;
   field_must_equal: string;
-  output_memory: AlphaMemory | null;
-  children: ConstTestNode[] = [];
 
   constructor(
     field_to_test: WMEFieldType,
     field_must_equal: string,
     output_memory: AlphaMemory | null
   ) {
-    this.field_to_test = (field_to_test);
-    this.field_must_equal = (field_must_equal);
-    this.output_memory = (output_memory);
-  }
-
-  static dummy_top() {
-    const node: ConstTestNode = new ConstTestNode(WMEFieldType.None, "-42", null);;
-    return node;
+    super(output_memory);
+    this.field_to_test = field_to_test;
+    this.field_must_equal = field_must_equal;
   }
 
   print() {
-    if(this.field_to_test == WMEFieldType.None) {
-      return "(const-test dummy)";
-    }
     return "(const-test " + printFieldType(this.field_to_test) + " =? " + this.field_must_equal + ")";
+  }
+
+  testWme(w: WME): boolean {
+    return w.get_field(this.field_to_test) === this.field_must_equal;
   }
 }
 
+export class IntraTestNode extends TestNode {
+  first_field: WMEFieldType;
+  second_field: WMEFieldType;
 
+  constructor(first_field: WMEFieldType, second_field: WMEFieldType, output_memory: AlphaMemory | null) {
+    super(output_memory);
+    this.first_field = first_field;
+    this.second_field = second_field;
+  }
+
+  testWme(w: WME): boolean {
+    return w.fields[this.first_field] === w.fields[this.second_field];
+  }
+
+  print() {
+    return "(const-test " + printFieldType(this.first_field) + " == " + this.second_field + ")";
+  }
+}
 
 // pg 22
 class Token {
@@ -348,11 +385,11 @@ class ProductionNode extends BetaMemory {
 
 // no page; hold all global state
 export class Rete {
-  alpha_top: ConstTestNode;
+  alpha_top: TestNode;
   // alphabetically ordered for ease of use
   alphamemories: AlphaMemory[] = [];
   betamemories: BetaMemory[] = [];
-  consttestnodes: ConstTestNode[] = [];
+  consttestnodes: TestNode[] = [];
   joinnodes: JoinNode[] = [];
   productions: ProductionNode[] = [];
 
@@ -362,7 +399,7 @@ export class Rete {
   working_memory: WME[] = [];
 
   constructor() {
-    this.alpha_top = ConstTestNode.dummy_top();
+    this.alpha_top = new DummyTestNode();
     this.consttestnodes.push(this.alpha_top);
   }
 }
@@ -377,15 +414,11 @@ function alpha_memory_activation(node: AlphaMemory, w: WME) {
 
 // pg 15
 // return whether test succeeded or not.
-function const_test_node_activation(node: ConstTestNode, w: WME) {
+function const_test_node_activation(node: TestNode, w: WME) {
   console.log ("const_test_node_activation" + "| node: " + node.print() + " | wme: " + w.print() + "\n");
-
-  if (node.field_to_test !== WMEFieldType.None) {
-    if (w.get_field(node.field_to_test) !== node.field_must_equal) {
-      return false;
-    }
+  if (!node.testWme(w)) {
+    return false;
   }
-
   if (node.output_memory) {
     alpha_memory_activation(node.output_memory, w);
   }
@@ -530,15 +563,17 @@ function get_join_tests_from_condition(
 // page 36
 function build_or_share_constant_test_node(
   r: Rete,
-  parent: ConstTestNode,
+  parent: TestNode,
   f: WMEFieldType,
   sym: string
 ) {
   assert.strict(parent != null);
   // look for pre-existing node
   for (const child of parent.children) {
-    if (child.field_to_test == f && child.field_must_equal == sym) {
-      return child;
+    if(child instanceof ConstTestNode) {
+      if (child.field_to_test == f && child.field_must_equal == sym) {
+        return child;
+      }
     }
   }
   // build a new node
@@ -551,6 +586,33 @@ function build_or_share_constant_test_node(
   // newnode->children = nullptr;
   return newnode;
 }
+
+function build_or_share_intra_test_node(
+  r: Rete,
+  parent: TestNode,
+  f1: WMEFieldType,
+  f2: WMEFieldType
+) {
+  assert.strict(parent != null);
+  // look for pre-existing node
+  for (const child of parent.children) {
+    if(child instanceof IntraTestNode) {
+      if (child.first_field == f1 && child.second_field == f2) {
+        return child;
+      }
+    }
+  }
+  // build a new node
+  const newnode = new IntraTestNode(f1, f2, null);;
+  r.consttestnodes.push(newnode);
+  console.log(`build_or_share_intra_test_node newconsttestnode: %${newnode.print()}\n`);
+  parent.children.push(newnode);
+  // newnode->field_to_test = f; newnode->field_must_equal = sym;
+  // newnode->output_memory = nullptr;
+  // newnode->children = nullptr;
+  return newnode;
+}
+
 
 // implied in page 35: build_or_share_alpha_memory.
 function wme_passes_constant_tests(w: WME, c: Condition) {
@@ -565,9 +627,16 @@ function wme_passes_constant_tests(w: WME, c: Condition) {
 function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) {
   let currentNode = r.alpha_top;
   for (let f = 0; f < WMEFieldType.NumFields; ++f) {
-    if (c.attrs[f].type != FieldType.Const) continue;
     const sym = c.attrs[f].v;
-    currentNode = build_or_share_constant_test_node(r, currentNode, f, sym);
+    if (c.attrs[f].type == FieldType.Const) {
+      currentNode = build_or_share_constant_test_node(r, currentNode, f, sym);
+    } else {
+      for(let f2 = f + 1; f2 < WMEFieldType.NumFields; ++f2) {
+        if(c.attrs[f2].type == FieldType.Var && sym === c.attrs[f2].v) {
+          currentNode = build_or_share_intra_test_node(r, currentNode, f, f2);
+        }
+      }
+    }
   }
 
   if (currentNode.output_memory != null) {

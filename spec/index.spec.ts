@@ -1,6 +1,5 @@
 import {expect} from 'chai';
-import {WME, Condition, Field, Rete, addWME, add_production, ConstTestNode} from '../index.js';
-import exp from "node:constants";
+import {WME, Condition, Field, Rete, addWME, add_production, ConstTestNode, TestNode} from '../index.js';
 
 describe('The library', () => {
 // add simple WME to match a production with 1 element.
@@ -90,16 +89,20 @@ describe('The library', () => {
 
     const rete = new Rete();
 
-    addWME(rete, new WME("B1", "on", "B2"));
-    addWME(rete, new WME("B1", "on", "B3"));
-    addWME(rete, new WME("B1", "on", "B1")); // MATCH
-    addWME(rete, new WME("B1", "color", "red"));
+    // addWME(rete, new WME("B1", "on", "B2"));
+    // addWME(rete, new WME("B1", "on", "B3"));
+    // addWME(rete, new WME("B1", "on", "B1")); // MATCH
+    // addWME(rete, new WME("B1", "color", "red"));
 
     let lhs = [new Condition(
       Field.var("x"),
       Field.constant("on"),
       Field.var("x"))];
     const p = add_production(rete, lhs,"prod1");
+    addWME(rete, new WME("B1", "on", "B2"));
+    addWME(rete, new WME("B1", "on", "B3"));
+    addWME(rete, new WME("B1", "on", "B1")); // MATCH
+    addWME(rete, new WME("B1", "color", "red"));
 
     expect(p.items.length).to.equal(1);
 
@@ -180,12 +183,12 @@ describe('The library', () => {
     conds.push(new Condition(Field.var("a"), Field.constant("left-of"), Field.var("d")));
     add_production(rete, conds, "prod1");
 
-    const foundAlphaForOn = rete.consttestnodes.find(x => x.field_to_test === 1 && x.field_must_equal === "on")?.output_memory;
+    const foundAlphaForOn = rete.consttestnodes.filter((x: TestNode) => x instanceof ConstTestNode).find((x: ConstTestNode) => x.field_to_test === 1 && x.field_must_equal === "on")?.output_memory;
     expect(foundAlphaForOn?.items?.length).to.equal(3);
 
     const foundAlphaForColor = rete.consttestnodes
-      .find((x: ConstTestNode) => x.field_to_test === 1 && x.field_must_equal === "color")
-      ?.children?.find((x: ConstTestNode) => x.field_to_test === 2 && x.field_must_equal === "red")
+      .filter((x: TestNode) => x instanceof ConstTestNode).find((x: ConstTestNode) => x.field_to_test === 1 && x.field_must_equal === "color")
+      ?.children?.filter((x: TestNode) => x instanceof ConstTestNode)?.find((x: ConstTestNode) => x.field_to_test === 2 && x.field_must_equal === "red")
       ?.output_memory;
     expect(foundAlphaForColor?.items?.length).to.equal(1);
 
