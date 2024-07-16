@@ -157,7 +157,7 @@ export class ConstTestNode { //ds: Exported to facilitate unit tests
     if(this.field_to_test == WMEFieldType.None) {
       return "(const-test dummy)";
     }
-    return "(const-test " + this.field_to_test + " =? " + this.field_must_equal + ")";
+    return "(const-test " + printFieldType(this.field_to_test) + " =? " + this.field_must_equal + ")";
   }
 }
 
@@ -567,12 +567,7 @@ function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) {
   for (let f = 0; f < WMEFieldType.NumFields; ++f) {
     if (c.attrs[f].type != FieldType.Const) continue;
     const sym = c.attrs[f].v;
-    currentNode = build_or_share_constant_test_node(
-      r,
-      currentNode,
-      f,
-      sym
-    );
+    currentNode = build_or_share_constant_test_node(r, currentNode, f, sym);
   }
 
   if (currentNode.output_memory != null) {
