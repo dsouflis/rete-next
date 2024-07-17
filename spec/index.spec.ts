@@ -1,5 +1,5 @@
 import {expect} from 'chai';
-import {WME, Condition, Field, Rete, addWME, add_production, ConstTestNode, TestNode} from '../index.js';
+import {Condition, ConstTestNode, Field, Rete, TestNode, WME} from '../index.js';
 
 describe('The library', () => {
 // add simple WME to match a production with 1 element.
@@ -23,14 +23,14 @@ describe('The library', () => {
       Field.var("x"),
       Field.constant("on"),
       Field.var("y"))];
-    const p = add_production(rete, lhs, "prod1");
+    const p = rete.addProduction(lhs, "prod1");
 
     console.log("added production\n");
 
-    addWME(rete, new WME("B1", "on", "B2"));
+    rete.addWME(new WME("B1", "on", "B2"));
     expect(p.items.length).to.equal(1);
 
-    addWME(rete, new WME("B1", "on", "B3"));
+    rete.addWME(new WME("B1", "on", "B3"));
     expect(p.items.length).to.equal(2);
 
     console.log("====\n");
@@ -43,14 +43,14 @@ describe('The library', () => {
     const rete = new Rete();
 
 
-    addWME(rete, new WME("B1", "on", "B2"));
-    addWME(rete, new WME("B1", "on", "B3"));
+    rete.addWME(new WME("B1", "on", "B2"));
+    rete.addWME(new WME("B1", "on", "B3"));
 
     let lhs = [new Condition(
       Field.var("x"),
       Field.constant("on"),
       Field.var("y"))];
-    const p = add_production(rete, lhs,"prod1");
+    const p = rete.addProduction(lhs, "prod1");
 
     expect(p.items.length).to.equal(2);
 
@@ -65,15 +65,15 @@ describe('The library', () => {
 
     const rete = new Rete();
 
-    addWME(rete, new WME("B1", "on", "B2"));
-    addWME(rete, new WME("B1", "on", "B3"));
-    addWME(rete, new WME("B1", "color", "red"));
+    rete.addWME(new WME("B1", "on", "B2"));
+    rete.addWME(new WME("B1", "on", "B3"));
+    rete.addWME(new WME("B1", "color", "red"));
 
     let lhs = [new Condition(
       Field.var("x"),
       Field.constant("on"),
       Field.var("y"))];
-    const p = add_production(rete, lhs,"prod1");
+    const p = rete.addProduction(lhs, "prod1");
 
     expect(p.items.length).to.equal(2);
 
@@ -98,11 +98,11 @@ describe('The library', () => {
       Field.var("x"),
       Field.constant("on"),
       Field.var("x"))];
-    const p = add_production(rete, lhs,"prod1");
-    addWME(rete, new WME("B1", "on", "B2"));
-    addWME(rete, new WME("B1", "on", "B3"));
-    addWME(rete, new WME("B1", "on", "B1")); // MATCH
-    addWME(rete, new WME("B1", "color", "red"));
+    const p = rete.addProduction(lhs, "prod1");
+    rete.addWME(new WME("B1", "on", "B2"));
+    rete.addWME(new WME("B1", "on", "B3"));
+    rete.addWME(new WME("B1", "on", "B1")); // MATCH
+    rete.addWME(new WME("B1", "color", "red"));
 
     expect(p.items.length).to.equal(1);
 
@@ -118,9 +118,9 @@ describe('The library', () => {
 
     const rete = new Rete();
 
-    addWME(rete, new WME("B1", "on", "B2"));
-    addWME(rete, new WME("B1", "on", "B3"));
-    addWME(rete, new WME("B2", "left-of", "B3"));
+    rete.addWME(new WME("B1", "on", "B2"));
+    rete.addWME(new WME("B1", "on", "B3"));
+    rete.addWME(new WME("B2", "left-of", "B3"));
 
     const conds: Condition[] = [];
     conds.push(new Condition(Field.var("x"), Field.constant("on"),
@@ -128,7 +128,7 @@ describe('The library', () => {
     conds.push(new Condition(Field.var("y"), Field.constant("left-of"),
       Field.var("z")));
 
-    const p = add_production(rete, conds, "prod1");
+    const p = rete.addProduction(conds, "prod1");
     expect(p.items.length).to.equal(1);
 
     console.log("====\n");
@@ -148,11 +148,11 @@ describe('The library', () => {
     conds.push(new Condition(Field.var("y"), Field.constant("left-of"),
       Field.var("z")));
 
-    const p = add_production(rete, conds, "prod1");
+    const p = rete.addProduction(conds, "prod1");
 
-    addWME(rete, new WME("B1", "on", "B2"));
-    addWME(rete, new WME("B1", "on", "B3"));
-    addWME(rete, new WME("B2", "left-of", "B3"));
+    rete.addWME(new WME("B1", "on", "B2"));
+    rete.addWME(new WME("B1", "on", "B3"));
+    rete.addWME(new WME("B2", "left-of", "B3"));
 
     expect(p.items.length).to.equal(1);
 
@@ -165,10 +165,10 @@ describe('The library', () => {
 
     const rete = new Rete();
 
-    addWME(rete, new WME("B1", "on", "B2"));
-    addWME(rete, new WME("B1", "on", "B3"));
-    addWME(rete, new WME("B1", "on", "B1"));
-    addWME(rete, new WME("B1", "color", "red"));
+    rete.addWME(new WME("B1", "on", "B2"));
+    rete.addWME(new WME("B1", "on", "B3"));
+    rete.addWME(new WME("B1", "on", "B1"));
+    rete.addWME(new WME("B1", "color", "red"));
 
     const conds: Condition[] = [];
     conds.push(new Condition(Field.var("x"), Field.constant("on"), Field.var("y")));
@@ -181,7 +181,7 @@ describe('The library', () => {
     conds.push(new Condition(Field.var("s"), Field.constant("on"), Field.constant("table")));
     conds.push(new Condition(Field.var("y"), Field.var("a"), Field.var("b")));
     conds.push(new Condition(Field.var("a"), Field.constant("left-of"), Field.var("d")));
-    add_production(rete, conds, "prod1");
+    rete.addProduction(conds, "prod1")
 
     const foundAlphaForOn = rete.consttestnodes.filter((x: TestNode) => x instanceof ConstTestNode).find((x: ConstTestNode) => x.field_to_test === 1 && x.field_must_equal === "on")?.output_memory;
     expect(foundAlphaForOn?.items?.length).to.equal(3);

@@ -364,7 +364,7 @@ class JoinNode {
 }
 
 // pg 37: inferred
-class ProductionNode extends BetaMemory {
+export class ProductionNode extends BetaMemory {
   rhs: string;
 
   constructor(parent: JoinNode, rhs: string) {
@@ -402,6 +402,14 @@ export class Rete {
     this.alpha_top = new DummyTestNode();
     this.consttestnodes.push(this.alpha_top);
   }
+
+  addWME(w: WME) {
+    addWME(this, w);
+  }
+
+  addProduction(lhs: Condition[], rhs: string): ProductionNode {
+    return add_production(this, lhs, rhs);
+  }
 }
 
 // pg 21
@@ -429,7 +437,7 @@ function const_test_node_activation(node: TestNode, w: WME) {
 }
 
 // pg 14
-export function addWME(r: Rete, w: WME) {
+function addWME(r: Rete, w: WME) {
   r.working_memory.push(w);
   const_test_node_activation(r.alpha_top, w);
 }
