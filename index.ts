@@ -655,7 +655,7 @@ function lookup_earlier_cond_with_field(
   let i: number = earlierConds.length - 1;
   let f2: number = -1;
 
-  for(let it = 0; it != earlierConds.length; ++it) {
+  for(let it = i; it >= 0; --it) {
     const cond: Condition = earlierConds[it];
     for (let j = 0; j < WMEFieldType.NumFields; ++j) {
       if (cond.attrs[j].type != FieldType.Var) continue;
