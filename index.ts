@@ -119,6 +119,11 @@ export class WME {
 class AlphaMemory {
   items: WME[] = []
   successors: JoinNode[] = [];
+  parent: TestNode;
+
+  constructor(parent: TestNode) {
+    this.parent = parent;
+  }
 
   toString() {
     let s: string = "(alpha-memory:" + this.items.length + " ";
@@ -132,6 +137,7 @@ class AlphaMemory {
 export abstract class TestNode { //ds: Exported to facilitate unit tests
   output_memory: AlphaMemory | null;
   children: TestNode[] = [];
+  parent: TestNode | null = null;
 
   constructor(
     output_memory: AlphaMemory | null
@@ -165,11 +171,13 @@ export class ConstTestNode extends TestNode  {
   constructor(
     field_to_test: WMEFieldType,
     field_must_equal: string,
-    output_memory: AlphaMemory | null
+    output_memory: AlphaMemory | null,
+    parent: TestNode
   ) {
     super(output_memory);
     this.field_to_test = field_to_test;
     this.field_must_equal = field_must_equal;
+    this.parent = parent;
   }
 
   toString() {
@@ -185,10 +193,16 @@ export class IntraTestNode extends TestNode {
   first_field: WMEFieldType;
   second_field: WMEFieldType;
 
-  constructor(first_field: WMEFieldType, second_field: WMEFieldType, output_memory: AlphaMemory | null) {
+  constructor(
+    first_field: WMEFieldType,
+    second_field: WMEFieldType,
+    output_memory: AlphaMemory | null,
+    parent: TestNode
+    ) {
     super(output_memory);
     this.first_field = first_field;
     this.second_field = second_field;
+    this.parent = parent;
   }
 
   testWme(w: WME): boolean {
@@ -220,7 +234,7 @@ class Token {
   // - pg 20
   // - pg 25 {With list-form tokens,the following statement is really a loop}
   index(ix: number): WME {
-    if (!((ix >= 0) && (ix < this.token_chain_ix))) {
+    if (!((ix >= 0) && (ix <= this.token_chain_ix))) {
       console.error("ix: " + ix + " token_chain_ix: " + this.token_chain_ix + " wme: " + this.wme + "\n");
     }
     assert.strict(ix >= 0);
@@ -410,6 +424,106 @@ export class Rete {
   addProduction(lhs: Condition[], rhs: string): ProductionNode {
     return add_production(this, lhs, rhs);
   }
+
+  getIncompleteTokensForProduction(rhs: string) {
+    return get_incomplete_tokens_for_production(this, rhs);
+  }
+}
+
+function wme_to_condition(w: WME): Condition {
+  const fs = w.fields.map(f => Field.constant(f));
+  return new Condition(fs[0], fs[1], fs[2]);
+}
+
+function token_to_conditions(t: Token): Condition[] {
+  const conditions: Condition[] = new Array<Condition>(t.token_chain_ix + 1);
+  function traverseToken(t: Token, conditions: Condition[]) {
+    conditions[t.token_chain_ix] = wme_to_condition(t.wme);
+    if(!t.parent) return conditions;
+    return traverseToken(t.parent, conditions);
+  }
+  return traverseToken(t, conditions);
+}
+
+function get_incomplete_tokens_for_production(r: Rete, rhs: string): Condition[][] {
+  const p = r.productions.find(p => p.rhs === rhs);
+  if(!p || p.items.length) return []; //Production is in conflict set already
+  function reconstruct_path(j: JoinNode, path: JoinNode[]): JoinNode[] {
+    path.push(j);
+    // path.push(j);
+    if(j.bmem_src === null) {
+      return path;
+    }
+    return reconstruct_path(j.bmem_src.parent, path);
+  }
+  const path = reconstruct_path(p.parent, []);
+  const index: number = path.findIndex(j => j.bmem_src?.items.length);
+  const tokensAtIndex = path[index].bmem_src!.items;
+  const conditionsArrays = tokensAtIndex.map(token_to_conditions);
+  let newVarIndex = 0;
+  // console.log('Conditions:');
+  // for (const conditionsArray of conditionsArrays) {
+  //   console.log(conditionsArray.map(c => c.toString()).join(' '));
+  // }
+  for (const conditionsArray of conditionsArrays) {
+    for(let i= index; i < path.length - 1; i++) {
+      const joinNode = path[i];
+      const fields: (Field | null)[] = [null, null, null];
+      const tests = joinNode.tests;
+      for (const test of tests) {
+        const condition = conditionsArray[test.ix_in_token_of_arg2];
+        assert.strict(condition.attrs[test.field_of_arg2]?.type === FieldType.Const)
+        assert.strict(fields[test.field_of_arg1] === null);
+        fields[test.field_of_arg1] = condition.attrs[test.field_of_arg2];
+      }
+      const notAllFieldsSpecified = fields.includes(null);
+      if(notAllFieldsSpecified) {
+        let testNode: TestNode | null = joinNode.amem_src.parent;
+        while(testNode !== null) {
+          if(testNode instanceof ConstTestNode) {
+            const fieldToTest = fields[testNode.field_to_test];
+            if(fieldToTest === null) {
+              fields[testNode.field_to_test] = Field.constant(testNode.field_must_equal);
+            } else if(fieldToTest.type === FieldType.Const) {
+              assert.strict(fieldToTest.v === testNode.field_must_equal);
+            } else if(fieldToTest.type === FieldType.Var) {
+              const indexesOfVar = fields
+                .map((f,i) => [f,i] as [Field,number])
+                .filter(([f,_]:[Field,number]) => f !== fieldToTest && f.type === FieldType.Var && f.v === fieldToTest.v)
+                .map(([_,i]:[Field,number]) => i);
+              for (const index of indexesOfVar) {
+                fields[index] = Field.constant(testNode.field_must_equal);
+              }
+            }
+          } else if(testNode instanceof IntraTestNode) {
+            if(fields[testNode.first_field]?.type === FieldType.Const && fields[testNode.second_field]?.type === FieldType.Const) {
+              assert.strict(fields[testNode.first_field]?.v === fields[testNode.second_field]?.v)
+            } else if(fields[testNode.first_field]?.type === FieldType.Var && fields[testNode.second_field]?.type === FieldType.Var) {
+              fields[testNode.second_field] = fields[testNode.first_field];
+            } else if(fields[testNode.first_field]?.type === FieldType.Var) {
+              fields[testNode.first_field] = fields[testNode.second_field];
+            } else {
+              fields[testNode.second_field] = fields[testNode.first_field];
+            }
+          }
+          testNode = testNode.parent;
+        }
+      }
+      for (let i1 = 0; i1 < fields.length; i1++){
+        const field = fields[i1];
+        if(field === null) {
+          fields[i1] = Field.var(`_${newVarIndex++}`);
+        }
+      }
+      const newCondition = new Condition(fields[0]!, fields[1]!, fields[2]!);
+      conditionsArray.push(newCondition);
+    }
+  }
+  // console.log('New Conditions:')
+  // for (const conditionsArray of conditionsArrays) {
+  //   console.log(conditionsArray.map(c => c.toString()).join(' '));
+  // }
+  return conditionsArrays;
 }
 
 // pg 21
@@ -511,6 +625,13 @@ export class Field {
   static constant(name: string) {
     return new Field(FieldType.Const, name);
   }
+
+  toString() {
+    switch (this.type) {
+      case FieldType.Var: return `<${this.v}>`;
+      case FieldType.Const: return this.v;
+    }
+  }
 }
 
 // inferred from discussion
@@ -519,6 +640,10 @@ export class Condition {
 
   constructor(ident: Field, attr: Field, val: Field) {
     this.attrs = [ident, attr, val];
+  }
+
+  toString() {
+    return `(${this.attrs.map(f => f.toString()).join(' ')})`;
   }
 }
 
@@ -585,7 +710,7 @@ function build_or_share_constant_test_node(
     }
   }
   // build a new node
-  const newnode = new ConstTestNode(f, sym, null);;
+  const newnode = new ConstTestNode(f, sym, null, parent);
   r.consttestnodes.push(newnode);
   console.log(`build_or_share_constant_test_node newconsttestnode: %${newnode}\n`);
   parent.children.push(newnode);
@@ -611,7 +736,7 @@ function build_or_share_intra_test_node(
     }
   }
   // build a new node
-  const newnode = new IntraTestNode(f1, f2, null);;
+  const newnode = new IntraTestNode(f1, f2, null, parent);;
   r.consttestnodes.push(newnode);
   console.log(`build_or_share_intra_test_node newconsttestnode: %${newnode}\n`);
   parent.children.push(newnode);
@@ -651,7 +776,7 @@ function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) {
     return currentNode.output_memory;
   }
   assert.strict(currentNode.output_memory == null);
-  currentNode.output_memory = new AlphaMemory();
+  currentNode.output_memory = new AlphaMemory(currentNode);
   r.alphamemories.push(currentNode.output_memory);
   // initialize AM with any current WMEs
   for (const w of r.working_memory) {
