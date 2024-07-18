@@ -15,3 +15,7 @@ and this was added.
 ### Partial matches
 The original implementation only supported partial matches. An operation was added
 to retrieve partial matches (initial version exists).
+
+### Added removal of WMEs
+Rematch-based removal of WMEs was implemented. Testing for this revealed a severe error in BetaMemory.join_activation
+which came from the C++ implementation rete1.cpp (it did not exist in rete0.cpp).
