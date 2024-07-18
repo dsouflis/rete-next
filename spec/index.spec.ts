@@ -194,4 +194,75 @@ describe('The library', () => {
 
     console.log("====\n");
   });
+
+  it('can get partial matches for token prefixes', () => {
+    console.log("====partial matches for token prefixes:====\n");
+
+    const rete = new Rete();
+
+
+    const conds: Condition[] = [];
+    conds.push(new Condition(Field.var("x"), Field.constant("hunts"), Field.var("y")));
+    conds.push(new Condition(Field.var("y"), Field.constant("eats"), Field.var("z")));
+    conds.push(new Condition(Field.var("z"), Field.constant("help"), Field.var("w")));
+    console.log('Rule Conditions:')
+    console.log(conds.map(c => c.toString()).join(' '));
+
+    const p = rete.addProduction(conds, "hunting something that eats something");
+
+    rete.addWME(new WME("Elmer", "hunts", "Bugs"));
+
+    let incTokens;
+    incTokens= rete.getIncompleteTokensForProduction("hunting something that eats something");
+    console.log('New Conditions 1:')
+
+    expect(incTokens.length).to.equal(1);
+    expect(incTokens[0].toString()).to.equal("(Elmer hunts Bugs),(Bugs eats <_0>)");
+
+    rete.addWME(new WME("Bugs", "eats", "carrots"));
+    rete.addWME(new WME("carrots", "help", "eyesight"));
+
+    incTokens = rete.getIncompleteTokensForProduction("hunting something that eats something");
+
+    expect(incTokens.length).to.equal(0);
+
+    expect(p.items.length).to.equal(1);
+
+    console.log("====\n");
+  });
+
+  it('can remove a WME', () => {
+    console.log("====remove====\n");
+
+    const rete = new Rete();
+
+
+    const conds: Condition[] = [];
+    conds.push(new Condition(Field.var("x"), Field.constant("hunts"), Field.var("y")));
+    conds.push(new Condition(Field.var("y"), Field.constant("eats"), Field.var("z")));
+    conds.push(new Condition(Field.var("z"), Field.constant("help"), Field.var("w")));
+
+    const p = rete.addProduction(conds, "hunting something that eats something");
+
+    console.log('==== adding ====');
+    const w3 = new WME("carrots", "help", "eyesight");
+    const w1 = new WME("Elmer", "hunts", "Bugs");
+    const w2 = new WME("Bugs", "eats", "carrots");
+    rete.addWME(new WME("Tom", "hunts","Jerry"));
+    rete.addWME(new WME("Jerry", "eats","cheese"));
+    rete.addWME(new WME("cheese", "help","mood"));
+    rete.addWME(w1);
+    rete.addWME(w2);
+    rete.addWME(w3);
+
+    expect(p.items.length).to.equal(2);
+
+    console.log('==== removing ========');
+    rete.removeWME(w2);
+
+    expect(p.items.length).to.equal(1);
+
+    console.log("====\n");
+  });
+
 })
