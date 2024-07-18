@@ -1,5 +1,5 @@
 {
-  "name": "rete",
+  "name": "rete-next",
   "version": "1.0.0",
   "description": "Implementation of RETE in Doorenbos' thesis, based on https://github.com/bollu/rete",
   "type": "module",
@@ -12,9 +12,10 @@
   },
   "keywords": [
     "rete",
-    "expert system"
+    "expert system",
+    "production system"
   ],
-  "author": "",
+  "author": "Dimitrios Souflis",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^20.14.10",
