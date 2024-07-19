@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import {strict as assert} from 'assert';
 
 // Production Matching for Large Learning Systems
 // http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf
@@ -74,6 +74,12 @@ import { strict as assert } from 'assert';
 // instance (Show cond, Show act) => Show (Production cond act) where
 //   show (Production cond act) = brackets [show cond, "-->", show act]
 
+let idCounter = 1;
+
+class Identifiable {
+  id: number = idCounter++;
+}
+
 enum WMEFieldType {
   Ident = 0,
   Attr = 1,
@@ -116,17 +122,18 @@ export class WME {
 }
 
 // pg 21
-class AlphaMemory {
+class AlphaMemory extends Identifiable{
   items: WME[] = []
   successors: JoinNode[] = [];
   parent: TestNode;
 
   constructor(parent: TestNode) {
+    super();
     this.parent = parent;
   }
 
   toString() {
-    let s: string = "(alpha-memory:" + this.items.length + " ";
+    let s: string = "(alpha-memory #" + this.id + ":" + this.items.length + " ";
     for (const wme of this.items) s += wme + " ";
     s += ")";
     return s;
@@ -214,6 +221,106 @@ export class IntraTestNode extends TestNode {
   }
 }
 
+type ArithOp = '+' | '-' | '*' | '/';
+type CompOp = '=' | '<>' | '<' | '<=' | '>' | '>=';
+
+export interface ArithExpression {
+  eval(token: Token | null, w: WME): number;
+
+}
+
+export class VarExpression implements ArithExpression {
+  ix_in_token: number | null;
+  field: number;
+
+  constructor(field: number, ix_in_token = null) {
+    this.field = field;
+    this.ix_in_token = ix_in_token;
+  }
+
+  eval(t: Token | null, w: WME): number {
+    assert.strict(this.ix_in_token === null || t !== null)
+    const w2 = this.ix_in_token === null ? w : t!.index(this.ix_in_token);
+    return +w2.fields[this.field];
+  }
+}
+
+export class ConstExpression implements ArithExpression {
+  v: number;
+
+  constructor(v: number) {
+    this.v = v;
+  }
+
+  eval(t: Token | null, w: WME): number {
+    return this.v;
+  }
+}
+
+export class BinaryOpExpression implements ArithExpression {
+  op: ArithOp;
+  leftOperand: ArithExpression;
+  rightOperand: ArithExpression;
+
+  constructor(leftOperand: ArithExpression, op: ArithOp, rightOperand: ArithExpression) {
+    this.op = op;
+    this.leftOperand = leftOperand;
+    this.rightOperand = rightOperand;
+  }
+
+  eval(t: Token | null, w: WME): number {
+    const leftValue = this.leftOperand.eval(t, w);
+    const rightValue = this.rightOperand.eval(t, w);
+    switch (this.op) {
+      case "+": return leftValue + rightValue;
+      case "-": return leftValue - rightValue;
+      case "*": return leftValue * rightValue;
+      case "/": return leftValue / rightValue;
+    }
+    return 0;
+  }
+
+}
+
+export interface AbstractTestAtJoinNode {
+  test(t: Token | null, w: WME): boolean;
+}
+
+export class ArithTestNode extends TestNode implements AbstractTestAtJoinNode {
+  comp: CompOp;
+  leftOperand: ArithExpression;
+  rightOperand: ArithExpression;
+
+  constructor(output_memory: AlphaMemory | null, leftOperand: ArithExpression, comp: CompOp, rightOperand: ArithExpression) {
+    super(output_memory);
+    this.comp = comp;
+    this.leftOperand = leftOperand;
+    this.rightOperand = rightOperand;
+  }
+
+  testWme(w: WME): boolean {
+    return this.test(null, w);
+  }
+
+  test(t: Token | null, w: WME): boolean {
+    const leftValue = this.leftOperand.eval(t, w);
+    const rightValue = this.rightOperand.eval(t, w);
+    switch (this.comp) {
+      case "=": return Math.abs(leftValue - rightValue) < 1e-6;
+      case "<>": return Math.abs(leftValue - rightValue) > 1e-6;
+      case "<": return Math.abs(leftValue - rightValue) > 1e-6 && leftValue < rightValue;
+      case ">": return Math.abs(leftValue - rightValue) > 1e-6 && leftValue > rightValue;
+      case "<=": return Math.abs(leftValue - rightValue) < 1e-6 || leftValue < rightValue;
+      case ">=": return Math.abs(leftValue - rightValue) < 1e-6 || leftValue > rightValue;
+    }
+
+  }
+
+  toString(): string {
+    return "(arith-test " + this.leftOperand + " " + this.comp + " " + this.rightOperand + ")";
+  }
+}
+
 // pg 22
 class Token {
   parent: Token | null; // items [0..i-1]
@@ -259,31 +366,44 @@ class Token {
 }
 
 // pg 22
-class BetaMemory {
+class BetaMemory extends Identifiable{
   parent: JoinNode; // invariant: must be valid.
   items: Token[] = [];
   children: JoinNode[] = [];
 
   constructor(parent: JoinNode) {
+    super();
     this.parent = parent;
   }
 
   // pg 23: dodgy! the types are different from BetaMemory and their children
   // updates
-  join_activation(t: Token | null, w: WME) {
-    const new_token = new Token(w, t);
-    this.items = [new_token, ...this.items];
+  join_activation(t: Token | null, w: WME, add: boolean) {
+    let fullToken: Token;
+    console.log('join_activation' + (add?"[add]":"[remove]") + '| ' + this + ' on ' + t + ' and '+ w);
+    if (add) {
+      fullToken = new Token(w, t);
+      this.items = [fullToken, ...this.items];
     for (let child of this.children) {
-      child.beta_activation(t);
+        child.beta_activation(fullToken, add);
+      }
+    } else {
+      const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
+      assert.strict(toRemove.length === 1);
+      fullToken = toRemove[0];
+      for (let child of this.children) {
+        child.beta_activation(fullToken, add);
+      }
+      this.items = this.items.filter(t1 => t1 !== fullToken);
     }
   }
 
   toString() {
-    let s  = "(beta-memory items:";
+    let s  = "(beta-memory #" + this.id + " items: (";
     for(let item of this.items) {
       s += item + ' ';
     }
-    s += "| " + this.children.length + " children";
+    s += ")| " + this.children.length + " children";
     s += ")";
     return s;
   }
@@ -308,8 +428,8 @@ class TestAtJoinNode {
   }
 
   toString() {
-    let s  = "(test-at-join ";
-    s += this.field_of_arg1 + " ==  " +
+    let s  = "(test-at-join α[";
+    s += this.field_of_arg1 + "] ==  β" +
       this.ix_in_token_of_arg2 + "[" + this.field_of_arg2  + "]";
     s += ")";
     return s;
@@ -318,7 +438,7 @@ class TestAtJoinNode {
 
 
 /// pg 24
-class JoinNode {
+class JoinNode extends Identifiable {
   amem_src: AlphaMemory;
   bmem_src: BetaMemory | null;
 
@@ -326,29 +446,32 @@ class JoinNode {
   tests: TestAtJoinNode[] = [];
 
   constructor(amem_src: AlphaMemory, bmem_src: BetaMemory | null) {
+    super();
     this.amem_src = amem_src;
     this.bmem_src = bmem_src;
   }
 
-  alpha_activation(w: WME) {
+  alpha_activation(w: WME, add: boolean) {
     assert.strict(this.amem_src);
+    console.log('α-activation| #' + this.id + ' ' + (add?"[add]":"[remove]") + this + ' on ' + w);
     if (this.bmem_src) {
       for (const t of this.bmem_src.items) {
         if (!this.perform_join_tests(t, w)) continue;
-        for (const child of this.children) child.join_activation(t, w);
+        for (const child of this.children) child.join_activation(t, w, add);
       }
     } else {
       for (const child of this.children) {
-        child.join_activation(null, w);
+        child.join_activation(null, w, add);
       }
     }
   }
 
-  beta_activation(t: Token | null) {
+  beta_activation(t: Token | null, add: boolean) {
     assert.strict(this.amem_src);
+    console.log('β-activation| ' + (add?"[add]":"[remove]") + this + ' on ' + t);
     for (const w of this.amem_src.items) {
       if (!this.perform_join_tests(t, w)) continue;
-      for (const child of this.children) child.join_activation(t, w);
+      for (const child of this.children) child.join_activation(t, w, add);
     }
   }
 
@@ -357,7 +480,9 @@ class JoinNode {
     assert.strict(this.amem_src);
 
     if (t) {
+      console.log('perform_join_tests| '+this+' on '+t+ ' and '+w);
       for (const test of this.tests) {
+        console.log('perform_join_tests|| '+test+' on '+t+ ' and '+w);
         const arg1 = w.get_field(test.field_of_arg1);
         const wme2 = t.index(test.ix_in_token_of_arg2);
         const arg2 = wme2.get_field(test.field_of_arg2);
@@ -368,7 +493,7 @@ class JoinNode {
   }
 
   toString() {
-    let s = "(join";
+    let s = "(join #" + this.id + " α-mem:" + this.amem_src + ' β-mem: ' + this.bmem_src + ' tests:';
     for (const test of this.tests) {
       s += test;
     }
@@ -386,15 +511,27 @@ export class ProductionNode extends BetaMemory {
     this.rhs = rhs;
   }
 
-  join_activation(t: Token, w: WME) {
+  join_activation(t: Token | null, w: WME, add: boolean) {
+    if (add) {
     t = new Token(w, t);
     this.items.push(t);
     console.log("## (PROD " + t + " ~ " + this.rhs + ") ##\n");
+    } else {
+      const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
+      this.items = this.items.filter(t1 => !tokenIsParentAndWME(t1, t, w));
+      for(let tokenToRemove of toRemove){
+        console.log("## (PROD UNDO " + tokenToRemove + " ~ " + this.rhs + ") ##\n");
+      }
+    }
   }
 
   toString() {
     return "(production " + this.rhs + ")";
   }
+}
+
+function tokenIsParentAndWME(t: Token, parent: Token|null, w: WME): boolean {
+  return t.parent == parent && t.wme === w;
 }
 
 // no page; hold all global state
@@ -418,7 +555,11 @@ export class Rete {
   }
 
   addWME(w: WME) {
-    addWME(this, w);
+    addWME(this, w, true);
+  }
+
+  removeWME(w: WME) { //NB. this must be an actual WME in WM, not a clone
+    addWME(this, w, false);
   }
 
   addProduction(lhs: Condition[], rhs: string): ProductionNode {
@@ -527,33 +668,44 @@ function get_incomplete_tokens_for_production(r: Rete, rhs: string): Condition[]
 }
 
 // pg 21
-function alpha_memory_activation(node: AlphaMemory, w: WME) {
+function alpha_memory_activation(node: AlphaMemory, w: WME, add: boolean) {
+  if (add) {
   node.items = [(w), ...node.items];
-  console.log("alpha_memory_activation" + "| node: " + node + " | wme: " + w + "\n");
-  for (const child of node.successors) child.alpha_activation(w);
-
+  }
+  console.log("alpha_memory_activation" + (add?"[add]":"[remove]") + "| node: " + node + " | wme: " + w + "\n");
+  for (const child of node.successors) child.alpha_activation(w, add);
+  if(!add) {
+    node.items = node.items.filter(w1 => w1 !== w);
+  }
 }
 
 // pg 15
 // return whether test succeeded or not.
-function const_test_node_activation(node: TestNode, w: WME) {
-  console.log ("const_test_node_activation" + "| node: " + node + " | wme: " + w + "\n");
+function const_test_node_activation(node: TestNode, w: WME, add: boolean) {
+  console.log ("const_test_node_activation" + (add?"[add]":"[remove]") + "| node: " + node + " | wme: " + w);
   if (!node.testWme(w)) {
     return false;
   }
   if (node.output_memory) {
-    alpha_memory_activation(node.output_memory, w);
+    alpha_memory_activation(node.output_memory, w, add);
   }
   for (const c of node.children) {
-    const_test_node_activation(c, w);
+    const_test_node_activation(c, w, add);
   }
   return true;
 }
 
 // pg 14
-function addWME(r: Rete, w: WME) {
+function addWME(r: Rete, w: WME, add: boolean) {
+  if (add) {
   r.working_memory.push(w);
-  const_test_node_activation(r.alpha_top, w);
+  }
+  const_test_node_activation(r.alpha_top, w, add);
+  if(!add) {
+    const lengthBefore = r.working_memory.length;
+    r.working_memory = r.working_memory.filter(w1 => w1 !== w);
+    assert.strict(r.working_memory.length < lengthBefore);
+  }
 }
 
 
@@ -565,7 +717,7 @@ function update_new_node_with_matches_from_above(beta: BetaMemory) {
   join.children = [ beta ];
 
   // push alpha memory through join node.
-  for(const item of join.amem_src.items) { join.alpha_activation(item); }
+  for(const item of join.amem_src.items) { join.alpha_activation(item, true); }
   join.children = savedListOfChildren;
 }
 
@@ -634,9 +786,80 @@ export class Field {
   }
 }
 
+export interface ConditionArithExpression {
+  compileFromConditions(c: Condition, earlierConds: Condition[]): ArithExpression;
+}
+
+export class ConditionArithVar implements ConditionArithExpression {
+  v: string;
+
+  constructor(v: string) {
+    this.v = v;
+  }
+
+  compileFromConditions(c: Condition, earlierConds: Condition[]): ArithExpression {
+    for(let f = 0; f < WMEFieldType.NumFields; ++f) {
+      if (c.attrs[f].type != FieldType.Var) continue;
+      if(c.attrs[f].v === this.v) return new VarExpression(f);
+    }
+    //todo look in earlierConds
+    throw new Error('unimplemented');
+  }
+}
+
+export class ConditionArithConst implements ConditionArithExpression {
+  v: number;
+
+  constructor(v: number) {
+    this.v = v;
+  }
+
+  compileFromConditions(c: Condition, earlierConds: Condition[]): ArithExpression {
+    return new ConstExpression(this.v);
+  }
+}
+
+export class ConditionArithBinaryOp implements ConditionArithExpression {
+  op: ArithOp;
+  leftOperand: ConditionArithExpression;
+  rightOperand: ConditionArithExpression;
+
+  constructor(leftOperand: ConditionArithExpression, op: ArithOp, rightOperand: ConditionArithExpression) {
+    this.op = op;
+    this.leftOperand = leftOperand;
+    this.rightOperand = rightOperand;
+  }
+
+  compileFromConditions(c: Condition, earlierConds: Condition[]): ArithExpression {
+    const leftArithExpression = this.leftOperand.compileFromConditions(c, earlierConds);
+    const rightArithExpression = this.rightOperand.compileFromConditions(c, earlierConds);
+    return new BinaryOpExpression(leftArithExpression, this.op, rightArithExpression);
+  }
+}
+
+export class ConditionArithTest {
+  comp: CompOp;
+  leftOperand: ConditionArithExpression;
+  rightOperand: ConditionArithExpression;
+
+  constructor(leftOperand: ConditionArithExpression, comp: CompOp, rightOperand: ConditionArithExpression) {
+    this.comp = comp;
+    this.leftOperand = leftOperand;
+    this.rightOperand = rightOperand;
+  }
+
+  compileFromConditions(c: Condition, earlierConds: Condition[]): ArithTestNode {
+    const leftArithExpression = this.leftOperand.compileFromConditions(c, earlierConds);
+    const rightArithExpression = this.rightOperand.compileFromConditions(c, earlierConds);
+    return new ArithTestNode(null, leftArithExpression, this.comp, rightArithExpression);
+  }
+}
+
 // inferred from discussion
 export class Condition {
   attrs: Field[];
+  intraArithTests: ConditionArithTest[] = [];
+  extraArithTests: ConditionArithTest[] = [];
 
   constructor(ident: Field, attr: Field, val: Field) {
     this.attrs = [ident, attr, val];
@@ -746,6 +969,19 @@ function build_or_share_intra_test_node(
   return newnode;
 }
 
+function build_intra_arith_test_node(
+  r: Rete,
+  parent: TestNode,
+  arithTest: ConditionArithTest,
+  c: Condition,
+): ArithTestNode {
+  const newnode = arithTest.compileFromConditions(c, []);
+  console.log(`build_intra_arith_test_node newnode: %${newnode}\n`);
+  newnode.parent = parent;
+  parent.children.push(newnode);
+  return newnode;
+}
+
 
 // implied in page 35: build_or_share_alpha_memory.
 function wme_passes_constant_tests(w: WME, c: Condition) {
@@ -771,6 +1007,9 @@ function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) {
       }
     }
   }
+  for (const arithTest of c.intraArithTests) {
+    currentNode = build_intra_arith_test_node(r, currentNode, arithTest, c);
+  }
 
   if (currentNode.output_memory != null) {
     return currentNode.output_memory;
@@ -782,7 +1021,7 @@ function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) {
   for (const w of r.working_memory) {
     // check if wme passes all constant tests
     if (wme_passes_constant_tests(w, c)) {
-      alpha_memory_activation(currentNode.output_memory, w);
+      alpha_memory_activation(currentNode.output_memory, w, true);
     }
   }
   return currentNode.output_memory;

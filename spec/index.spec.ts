@@ -1,5 +1,15 @@
 import {expect} from 'chai';
-import {Condition, ConstTestNode, Field, Rete, TestNode, WME} from '../index.js';
+import {
+  Condition,
+  ConditionArithConst,
+  ConditionArithTest,
+  ConditionArithVar,
+  ConstTestNode,
+  Field,
+  Rete,
+  TestNode,
+  WME
+} from '../index.js';
 
 describe('The library', () => {
 // add simple WME to match a production with 1 element.

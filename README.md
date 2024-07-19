@@ -15,3 +15,6 @@ and this was added.
 ### Partial matches
 The original implementation only supported partial matches. An operation was added
 to retrieve partial matches (initial version exists).
+
+### Intra-condition arithmetic tests
+The ability to do arithmetic tests between variables of the condition was added.
