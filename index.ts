@@ -226,7 +226,6 @@ type CompOp = '=' | '<>' | '<' | '<=' | '>' | '>=';
 
 export interface ArithExpression {
   eval(token: Token | null, w: WME): number;
-
 }
 
 export class VarExpression implements ArithExpression {
@@ -243,6 +242,13 @@ export class VarExpression implements ArithExpression {
     const w2 = this.ix_in_token === null ? w : t!.index(this.ix_in_token);
     return +w2.fields[this.field];
   }
+
+  toString() {
+    if(this.ix_in_token === null) {
+      return "α[" + this.field + "]"
+    }
+    return "β" + this.ix_in_token + "[" + this.field + "]";
+  }
 }
 
 export class ConstExpression implements ArithExpression {
@@ -254,6 +260,10 @@ export class ConstExpression implements ArithExpression {
 
   eval(t: Token | null, w: WME): number {
     return this.v;
+  }
+
+  toString() {
+    return this.v.toString();
   }
 }
 
@@ -278,6 +288,10 @@ export class BinaryOpExpression implements ArithExpression {
       case "/": return leftValue / rightValue;
     }
     return 0;
+  }
+
+  toString() {
+    return "(" + this.leftOperand + " " + this.op + " " + this.rightOperand + ")";
   }
 
 }
@@ -811,7 +825,11 @@ export class ConditionArithVar implements ConditionArithExpression {
     const [i, f2] = lookup_earlier_cond_with_field(earlierConds, this.v);
     if (i == -1)  { assert.strict(f2 == -1); }
     assert.strict(i != -1); assert.strict(f2 != -1);
-    throw new VarExpression(f2, i);
+    return new VarExpression(f2, i);
+  }
+
+  toString() {
+    return "<" + this.v + ">";
   }
 }
 
@@ -824,6 +842,10 @@ export class ConditionArithConst implements ConditionArithExpression {
 
   compileFromConditions(c: Condition, earlierConds: Condition[]): ArithExpression {
     return new ConstExpression(this.v);
+  }
+
+  toString() {
+    return this.v;
   }
 }
 
@@ -843,6 +865,10 @@ export class ConditionArithBinaryOp implements ConditionArithExpression {
     const rightArithExpression = this.rightOperand.compileFromConditions(c, earlierConds);
     return new BinaryOpExpression(leftArithExpression, this.op, rightArithExpression);
   }
+
+  toString() {
+    return "(" + this.leftOperand + " " + this.op + " " + this.rightOperand + ")";
+  }
 }
 
 export class ConditionArithTest {
@@ -861,6 +887,10 @@ export class ConditionArithTest {
     const rightArithExpression = this.rightOperand.compileFromConditions(c, earlierConds);
     return new ArithTestNode(null, leftArithExpression, this.comp, rightArithExpression);
   }
+
+  toString() {
+    return "(" + this.leftOperand + " " + this.comp + " " + this.rightOperand + ")";
+  }
 }
 
 // inferred from discussion
@@ -874,7 +904,9 @@ export class Condition {
   }
 
   toString() {
-    return `(${this.attrs.map(f => f.toString()).join(' ')})`;
+    const intraTestsString = this.intraArithTests.map(t => t.toString()).join();
+    const extraTestsString = this.extraArithTests.map(t => t.toString()).join();
+    return `(${this.attrs.map(f => f.toString()).join(' ')})${intraTestsString}${extraTestsString}`;
   }
 }
 

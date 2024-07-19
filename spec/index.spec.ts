@@ -204,4 +204,135 @@ describe('The library', () => {
 
     console.log("====\n");
   });
+
+  it('can get partial matches for token prefixes', () => {
+    console.log("====partial matches for token prefixes:====\n");
+
+    const rete = new Rete();
+
+
+    const conds: Condition[] = [];
+    conds.push(new Condition(Field.var("x"), Field.constant("hunts"), Field.var("y")));
+    conds.push(new Condition(Field.var("y"), Field.constant("eats"), Field.var("z")));
+    conds.push(new Condition(Field.var("z"), Field.constant("help"), Field.var("w")));
+    console.log('Rule Conditions:')
+    console.log(conds.map(c => c.toString()).join(' '));
+
+    const p = rete.addProduction(conds, "hunting something that eats something");
+
+    rete.addWME(new WME("Elmer", "hunts", "Bugs"));
+
+    let incTokens;
+    incTokens= rete.getIncompleteTokensForProduction("hunting something that eats something");
+    console.log('New Conditions 1:')
+
+    expect(incTokens.length).to.equal(1);
+    expect(incTokens[0].toString()).to.equal("(Elmer hunts Bugs),(Bugs eats <_0>)");
+
+    rete.addWME(new WME("Bugs", "eats", "carrots"));
+    rete.addWME(new WME("carrots", "help", "eyesight"));
+
+    incTokens = rete.getIncompleteTokensForProduction("hunting something that eats something");
+
+    expect(incTokens.length).to.equal(0);
+
+    expect(p.items.length).to.equal(1);
+
+    console.log("====\n");
+  });
+
+  it('can remove a WME', () => {
+    console.log("====remove====\n");
+
+    const rete = new Rete();
+
+
+    const conds: Condition[] = [];
+    conds.push(new Condition(Field.var("x"), Field.constant("hunts"), Field.var("y")));
+    conds.push(new Condition(Field.var("y"), Field.constant("eats"), Field.var("z")));
+    conds.push(new Condition(Field.var("z"), Field.constant("help"), Field.var("w")));
+
+    const p = rete.addProduction(conds, "hunting something that eats something");
+
+    console.log('==== adding ====');
+    const w3 = new WME("carrots", "help", "eyesight");
+    const w1 = new WME("Elmer", "hunts", "Bugs");
+    const w2 = new WME("Bugs", "eats", "carrots");
+    rete.addWME(new WME("Tom", "hunts","Jerry"));
+    rete.addWME(new WME("Jerry", "eats","cheese"));
+    rete.addWME(new WME("cheese", "help","mood"));
+    rete.addWME(w1);
+    rete.addWME(w2);
+    rete.addWME(w3);
+
+    expect(p.items.length).to.equal(2);
+
+    console.log('==== removing ========');
+    rete.removeWME(w2);
+
+    expect(p.items.length).to.equal(1);
+
+    console.log("====\n");
+  });
+
+  it('works with intra arith condition when first adding production, then adding WME', () => {
+    console.log("====intra arith condition:====\n");
+    const rete = new Rete();
+
+    console.log("adding production\n");
+
+    const condition = new Condition(
+      Field.var("x"),
+      Field.constant("weighs"),
+      Field.var("y"));
+    condition.intraArithTests.push(new ConditionArithTest(new ConditionArithVar("y"), '>', new ConditionArithConst(2)));
+    let lhs = [condition];
+    const p = rete.addProduction(lhs, "prod1");
+
+    console.log("added production\n");
+
+    rete.addWME(new WME("B1", "weighs", "1"));
+    expect(p.items.length).to.equal(0);
+
+    const wme = new WME("B2", "weighs", "3");
+    rete.addWME(wme);
+    expect(p.items.length).to.equal(1);
+
+    rete.removeWME(wme);
+    expect(p.items.length).to.equal(0);
+
+    console.log("====\n");
+  });
+
+  it('works with arith condition in join when first adding production, then adding WME', () => {
+    console.log("====arith condition in join:====\n");
+    const rete = new Rete();
+
+    console.log("adding production\n");
+
+    const condition1 = new Condition(
+      Field.var("x"),
+      Field.constant("needs"),
+      Field.var("y"));
+    const condition2 = new Condition(
+      Field.var("x"),
+      Field.constant("consumes"),
+      Field.var("z"));
+    condition2.extraArithTests.push(new ConditionArithTest(new ConditionArithVar("y"), '>', new ConditionArithVar("z")));
+    let lhs = [condition1, condition2];
+    const p = rete.addProduction(lhs, "caloric deficit");
+
+    console.log("added production\n");
+
+    rete.addWME(new WME("B1", "needs", "1600"));
+    rete.addWME(new WME("B1", "consumes", "1700"));
+    expect(p.items.length).to.equal(0);
+
+    rete.addWME(new WME("B2", "needs", "1600"));
+    rete.addWME(new WME("B2", "consumes", "1500"));
+    expect(p.items.length).to.equal(1);
+
+    console.log("====\n");
+  });
+
 })
