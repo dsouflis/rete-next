@@ -17,4 +17,4 @@ The original implementation only supported partial matches. An operation was add
 to retrieve partial matches (initial version exists).
 
 ### Arithmetic tests
-The ability to do arithmetic tests between variables of intra-condition, or across conditions, was added.
+The ability to do arithmetic tests between variables, intra-condition, or across conditions, was added.
