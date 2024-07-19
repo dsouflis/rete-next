@@ -233,7 +233,7 @@ export class VarExpression implements ArithExpression {
   ix_in_token: number | null;
   field: number;
 
-  constructor(field: number, ix_in_token = null) {
+  constructor(field: number, ix_in_token: number | null= null) {
     this.field = field;
     this.ix_in_token = ix_in_token;
   }
@@ -410,7 +410,7 @@ class BetaMemory extends Identifiable{
 }
 
 // pg 24
-class TestAtJoinNode {
+class TestAtJoinNode implements AbstractTestAtJoinNode {
   field_of_arg1: WMEFieldType;
   field_of_arg2: WMEFieldType;
   ix_in_token_of_arg2: number;
@@ -425,6 +425,14 @@ class TestAtJoinNode {
     return this.field_of_arg1 == other.field_of_arg1 &&
       this.field_of_arg2 == other.field_of_arg2 &&
       this.ix_in_token_of_arg2 == other.ix_in_token_of_arg2;
+  }
+
+  test(t: Token, w: WME) {
+    const arg1 = w.get_field(this.field_of_arg1);
+    const wme2 = t.index(this.ix_in_token_of_arg2);
+    const arg2 = wme2.get_field(this.field_of_arg2);
+    if (arg1 != arg2) return false;
+    return true;
   }
 
   toString() {
@@ -443,7 +451,7 @@ class JoinNode extends Identifiable {
   bmem_src: BetaMemory | null;
 
   children: BetaMemory[] = [];
-  tests: TestAtJoinNode[] = [];
+  tests: AbstractTestAtJoinNode[] = [];
 
   constructor(amem_src: AlphaMemory, bmem_src: BetaMemory | null) {
     super();
@@ -482,11 +490,7 @@ class JoinNode extends Identifiable {
     if (t) {
       console.log('perform_join_tests| '+this+' on '+t+ ' and '+w);
       for (const test of this.tests) {
-        console.log('perform_join_tests|| '+test+' on '+t+ ' and '+w);
-        const arg1 = w.get_field(test.field_of_arg1);
-        const wme2 = t.index(test.ix_in_token_of_arg2);
-        const arg2 = wme2.get_field(test.field_of_arg2);
-        if (arg1 != arg2) return false;
+        if(!test.test(t,w)) return false;
       }
     }
     return true;
@@ -612,10 +616,12 @@ function get_incomplete_tokens_for_production(r: Rete, rhs: string): Condition[]
       const fields: (Field | null)[] = [null, null, null];
       const tests = joinNode.tests;
       for (const test of tests) {
-        const condition = conditionsArray[test.ix_in_token_of_arg2];
-        assert.strict(condition.attrs[test.field_of_arg2]?.type === FieldType.Const)
-        assert.strict(fields[test.field_of_arg1] === null);
-        fields[test.field_of_arg1] = condition.attrs[test.field_of_arg2];
+        if (test instanceof TestAtJoinNode) {
+          const condition = conditionsArray[test.ix_in_token_of_arg2];
+          assert.strict(condition.attrs[test.field_of_arg2]?.type === FieldType.Const)
+          assert.strict(fields[test.field_of_arg1] === null);
+          fields[test.field_of_arg1] = condition.attrs[test.field_of_arg2];
+        }
       }
       const notAllFieldsSpecified = fields.includes(null);
       if(notAllFieldsSpecified) {
@@ -740,7 +746,7 @@ function build_or_share_join_node(
   r: Rete,
   bmem: BetaMemory | null,
   amem: AlphaMemory,
-  tests: TestAtJoinNode[]
+  tests: AbstractTestAtJoinNode[]
 ) {
   // bmem can be nullptr in top node case.
   // assert(bmem != nullptr);
@@ -802,8 +808,10 @@ export class ConditionArithVar implements ConditionArithExpression {
       if (c.attrs[f].type != FieldType.Var) continue;
       if(c.attrs[f].v === this.v) return new VarExpression(f);
     }
-    //todo look in earlierConds
-    throw new Error('unimplemented');
+    const [i, f2] = lookup_earlier_cond_with_field(earlierConds, this.v);
+    if (i == -1)  { assert.strict(f2 == -1); }
+    assert.strict(i != -1); assert.strict(f2 != -1);
+    throw new VarExpression(f2, i);
   }
 }
 
@@ -900,7 +908,7 @@ function get_join_tests_from_condition(
   c: Condition,
   earlierConds: Condition[]
 ) {
-  const result: TestAtJoinNode[] = [];
+  const result: AbstractTestAtJoinNode[] = [];
 
   for(let f = 0; f < WMEFieldType.NumFields; ++f) {
     if (c.attrs[f].type != FieldType.Var) continue;
@@ -912,6 +920,11 @@ function get_join_tests_from_condition(
     assert.strict(i != -1); assert.strict(f2 != -1);
     const test = new TestAtJoinNode(f, f2, i);
     result.push(test);
+  }
+  const extraArithTests = c.extraArithTests;
+  for (const arithTest of extraArithTests) {
+    const arithTestNode = arithTest.compileFromConditions(c, earlierConds);
+    result.push(arithTestNode);
   }
   return result;
 }
