@@ -422,6 +422,14 @@ class Token {
     s += ")";
     return s;
   }
+
+  toArray() {
+    function toArrayAux(t: Token | null, acc: WME[]) {
+      if(!t) return acc;
+      return toArrayAux(t.parent, [t.wme, ...acc]);
+    }
+    return toArrayAux(this, []);
+  }
 }
 
 // pg 22
@@ -635,7 +643,7 @@ export class Rete {
     return get_incomplete_tokens_for_production(this, rhs);
   }
 
-  addFuzzySystem(fs: FuzzyVariable) {
+  addFuzzyVariable(fs: FuzzyVariable) {
     this.fuzzySystems.push(fs);
   }
 
@@ -1105,13 +1113,16 @@ function wme_passes_constant_tests(w: WME, c: Condition) {
   return true;
 }
 
+export interface FuzzySystem {
+  computeConjunction(...μs: number[]): number;
+  computeDisjunction(...μs: number[]): number;
+}
+
 export interface FuzzyVariable {
   getName(): string;
   isFuzzyValue(fuzzyValue: string): boolean;
   computeMembershipValueForFuzzyValue(fuzzyValue: string, val: number): number;
   computeValueForFuzzyMembershipValue(fuzzyValue: string, μ: number): number;
-  computeConjunction(fuzzyValue: string, ...μs: number[]): number;
-  computeDisjunction(fuzzyValue: string, ...μs: number[]): number;
 }
 
 function build_or_share_fuzzy_test_node(r: Rete, parent: TestNode, fuzzyVariable: string, fuzzyValue: string) {

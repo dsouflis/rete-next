@@ -5,12 +5,55 @@ import {
   ConditionArithTest,
   ConditionArithVar,
   ConstTestNode,
-  Field, FuzzyWME,
+  Field, FuzzySystem,
+  FuzzyVariable,
+  FuzzyWME,
   Rete,
   TestNode,
   WME,
-  FuzzyVariable,
 } from '../index.js';
+
+function sigmoid(a: number, c: number, val: number) {
+  return 1 / (1 + Math.exp(-a * (val - c)));
+}
+
+class ExcellentAndPoorFuzzyVariable implements FuzzyVariable {
+  name: string;
+
+  constructor(name: string) {
+    this.name = name;
+  }
+
+  isFuzzyValue(fuzzyValue: string): boolean {
+    return fuzzyValue === "excellent" || fuzzyValue === "poor";
+  }
+
+  computeMembershipValueForFuzzyValue(fuzzyValue: string, val: number): number {
+    if (fuzzyValue === "excellent") {
+      return sigmoid(4, 0.7, val);
+    } else { //poor
+      return sigmoid(-4, 0.3, val);
+    }
+  }
+  computeValueForFuzzyMembershipValue(fuzzyValue: string, μ: number): number {
+    return 0; //dummy
+  }
+
+  getName(): string {
+    return this.name;
+  }
+}
+
+class MinMaxFuzzySystem implements FuzzySystem {
+  computeConjunction(...μs: number[]): number {
+    return Math.min(...μs);
+  }
+
+  computeDisjunction(...μs: number[]): number {
+    return Math.max(...μs);
+  }
+
+}
 
 describe('The library', () => {
 // add simple WME to match a production with 1 element.
@@ -341,38 +384,8 @@ describe('The library', () => {
     console.log("====fuzzy condition:====\n");
     const rete = new Rete();
 
-    class FoodFuzzyVariable implements FuzzyVariable {
-      computeMembershipValueForFuzzyValue(fuzzyValue: string, val: number): number {
-        //only one variable
-        const a = -1;
-        const c = 0.9;
-        return 1/(1 + Math.exp(a * (val - c)))
-      }
 
-      computeValueForFuzzyMembershipValue(fuzzyValue: string, μ: number): number {
-        return 0; //dummy
-      }
-
-      getName(): string {
-        return "food";
-      }
-
-      isFuzzyValue(fuzzyValue: string): boolean {
-        return fuzzyValue === "excellent";
-      }
-
-      computeConjunction(fuzzyValue: string, ...μs: number[]): number {
-        return 0; //dummy
-      }
-
-      computeDisjunction(fuzzyValue: string, ...μs: number[]): number {
-        return 0; //dummy
-      }
-
-    }
-
-    const foodFuzzySystem = new FoodFuzzyVariable();
-    rete.addFuzzySystem(foodFuzzySystem);
+    rete.addFuzzyVariable(new ExcellentAndPoorFuzzyVariable("food"));
 
     console.log("adding production\n");
 
@@ -387,11 +400,91 @@ describe('The library', () => {
 
     rete.addWME(new WME("B1", "food", "0.3"));
     expect(p.items.length).to.equal(1);
-    expect((p.items[0].wme as FuzzyWME).μ).to.closeTo(0.45, 0.1);
+    expect((p.items[0].wme as FuzzyWME).μ).to.closeTo(0.1, 0.1);
 
     rete.addWME(new WME("B2", "food", "0.9"));
     expect(p.items.length).to.equal(2);
-    expect((p.items[1].wme as FuzzyWME).μ).to.closeTo(0.5, 0.1);
+    expect((p.items[1].wme as FuzzyWME).μ).to.closeTo(0.7, 0.1);
+
+    console.log("====\n");
+  });
+
+  it('works with fuzzy condition 2', () => {
+    console.log("=====fuzzy condition 2:====\n");
+    const rete = new Rete();
+
+    rete.addFuzzyVariable(new ExcellentAndPoorFuzzyVariable("food"));
+
+    console.log("adding production\n");
+
+    const condition1 = new Condition(
+      Field.var("x"),
+      Field.constant("food"),
+      Field.constant("poor"));
+    let lhs = [condition1];
+    const p = rete.addProduction(lhs, "fuzzy inference");
+
+    console.log("added production\n");
+
+    rete.addWME(new WME("B1", "food", "0.3"));
+    expect(p.items.length).to.equal(1);
+    expect((p.items[0].wme as FuzzyWME).μ).to.closeTo(0.5, 0.1);
+
+    rete.addWME(new WME("B2", "food", "0.9"));
+    expect(p.items.length).to.equal(2);
+    expect((p.items[1].wme as FuzzyWME).μ).to.closeTo(0.1, 0.1);
+
+    console.log("====\n");
+  });
+
+  it('works with conjunction of fuzzy conditions', () => {
+    console.log("=====conjunction of fuzzy conditions:====\n");
+    const rete = new Rete();
+
+    rete.addFuzzyVariable(new ExcellentAndPoorFuzzyVariable("food"));
+    rete.addFuzzyVariable(new ExcellentAndPoorFuzzyVariable("service"));
+
+    console.log("adding production\n");
+
+    const conditionFoodIsExcellent = new Condition(
+      Field.var("x"),
+      Field.constant("food"),
+      Field.constant("excellent"));
+    const conditionServiceIsExcellent = new Condition(
+      Field.var("x"),
+      Field.constant("service"),
+      Field.constant("excellent"));
+    const conditionFoodIsPoor = new Condition(
+      Field.var("x"),
+      Field.constant("food"),
+      Field.constant("poor"));
+    const conditionServiceIsPoor = new Condition(
+      Field.var("x"),
+      Field.constant("service"),
+      Field.constant("poor"));
+
+    let lhs1 = [conditionFoodIsExcellent, conditionServiceIsExcellent];
+    const p1 = rete.addProduction(lhs1, "large tip");
+
+    let lhs2 = [conditionFoodIsPoor, conditionServiceIsPoor];
+    const p2 = rete.addProduction(lhs2, "small tip");
+
+    let lhs3 = [conditionFoodIsExcellent, conditionServiceIsPoor];
+    const p3 = rete.addProduction(lhs3, "medium tip");
+
+    console.log("added productions\n");
+
+    rete.addWME(new WME("B1", "food", "0.3"));
+    rete.addWME(new WME("B1", "service", "0.9"));
+    expect(p1.items.length).to.equal(1);
+    expect(p2.items.length).to.equal(1);
+    expect(p3.items.length).to.equal(1);
+
+    const minMaxFuzzySystem = new MinMaxFuzzySystem();
+
+    console.log(p1.rhs, p1.items.map(t => t.toString()).join(), minMaxFuzzySystem.computeConjunction(...p1.items[0].toArray().flatMap(w => ((w as FuzzyWME).μ))));
+    console.log(p2.rhs, p2.items.map(t => t.toString()).join(), minMaxFuzzySystem.computeConjunction(...p2.items[0].toArray().flatMap(w => ((w as FuzzyWME).μ))));
+    console.log(p3.rhs, p3.items.map(t => t.toString()).join(), minMaxFuzzySystem.computeConjunction(...p3.items[0].toArray().flatMap(w => ((w as FuzzyWME).μ))));
 
     console.log("====\n");
   });
