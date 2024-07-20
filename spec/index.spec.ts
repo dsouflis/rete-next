@@ -8,7 +8,8 @@ import {
   Field, FuzzyWME,
   Rete,
   TestNode,
-  WME
+  WME,
+  FuzzySystem,
 } from '../index.js';
 
 describe('The library', () => {
@@ -339,6 +340,31 @@ describe('The library', () => {
   it('works with fuzzy condition', () => {
     console.log("====fuzzy condition:====\n");
     const rete = new Rete();
+
+    class FoodFuzzySystem implements FuzzySystem {
+      computeMembershipForFuzzyDomainVariable(fuzzyVariable: string, val: number): number {
+        //only one variable
+        const a = -1;
+        const c = 0.9;
+        return 1/(1 + Math.exp(a * (val - c)))
+      }
+
+      computeValueForFuzzyMembershipValue(fuzzyVariable: string, μ: number): number {
+        return 0; //dummy
+      }
+
+      getName(): string {
+        return "food";
+      }
+
+      isFuzzyDomainVariable(fuzzyVariable: string): boolean {
+        return fuzzyVariable === "excellent";
+      }
+
+    }
+
+    const foodFuzzySystem = new FoodFuzzySystem();
+    rete.addFuzzySystem(foodFuzzySystem);
 
     console.log("adding production\n");
 
