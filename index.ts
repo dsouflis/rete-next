@@ -1,4 +1,5 @@
 import {strict as assert} from 'assert';
+import {Test} from "mocha";
 
 // Production Matching for Large Learning Systems
 // http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf
@@ -121,6 +122,19 @@ export class WME {
     }
 }
 
+export class FuzzyWME extends WME {
+  μ: number;
+
+  constructor(id: string, attr: string, val: string, μ: number) {
+    super(id, attr, val);
+    this.μ = μ;
+  }
+
+  toString(): string {
+    return super.toString() + "[" + this.μ + "]";
+  }
+}
+
 // pg 21
 class AlphaMemory extends Identifiable{
   items: WME[] = []
@@ -152,9 +166,11 @@ export abstract class TestNode { //ds: Exported to facilitate unit tests
     this.output_memory = (output_memory);
   }
 
-  abstract toString(): string;
-
   abstract testWme(w: WME) : boolean;
+
+  wme_to_propagate(w: WME) {
+    return w;
+  }
 }
 
 export class DummyTestNode extends TestNode {
@@ -218,6 +234,35 @@ export class IntraTestNode extends TestNode {
 
   toString() {
     return "(const-test " + printFieldType(this.first_field) + " == " + this.second_field + ")";
+  }
+}
+
+export class FuzzyTestNode extends TestNode {
+  fuzzyVariable: string;
+  fuzzyValue: string;
+  fuzzySystem: FuzzyVariable;
+
+  constructor(fuzzySystem: FuzzyVariable, fuzzyVariable: string, fuzzyValue: string, output_memory: AlphaMemory | null, parent: TestNode) {
+    super(output_memory);
+    this.fuzzySystem = fuzzySystem;
+    this.fuzzyVariable = fuzzyVariable;
+    this.fuzzyValue = fuzzyValue;
+  }
+
+  testWme(w: WME): boolean {
+    if(w.fields[WMEFieldType.Attr] !== this.fuzzyVariable) return false;
+    if(Number.isNaN(parseFloat(w.fields[WMEFieldType.Val]))) return false;
+    return true;
+  }
+
+  wme_to_propagate(w: WME): WME {
+    const normalized = parseFloat(w.fields[WMEFieldType.Val]);
+    const μ = this.fuzzySystem.computeMembershipValueForFuzzyValue(this.fuzzyValue, normalized);
+    return new FuzzyWME(w.fields[WMEFieldType.Ident], this.fuzzyVariable, this.fuzzyValue, μ);
+  }
+
+  toString(): string {
+    return "(fuzzy-test " + this.fuzzyVariable + " " + this.fuzzyValue + ")";
   }
 }
 
@@ -567,6 +612,8 @@ export class Rete {
   // presupposes knowledge of a collection of WMEs
   working_memory: WME[] = [];
 
+  fuzzySystems: FuzzyVariable[] = [];
+
   constructor() {
     this.alpha_top = new DummyTestNode();
     this.consttestnodes.push(this.alpha_top);
@@ -587,6 +634,27 @@ export class Rete {
   getIncompleteTokensForProduction(rhs: string) {
     return get_incomplete_tokens_for_production(this, rhs);
   }
+
+  addFuzzySystem(fs: FuzzyVariable) {
+    this.fuzzySystems.push(fs);
+  }
+
+  isFuzzySystem(fsn: string) {
+    return !!this.fuzzySystems.find(fs => fs.getName() === fsn);
+  }
+
+  getFuzzySystem(fsn: string) {
+    const found = this.fuzzySystems.find(fs => fs.getName() === fsn);
+    assert.strict(found);
+    return found;
+  }
+
+  isFuzzyDomainVariable(fuzzyVariable: string, fuzzyValue: string) {
+    if(!this.isFuzzySystem(fuzzyVariable)) return false;
+    const fuzzySystem = this.getFuzzySystem(fuzzyVariable);
+    return fuzzySystem.isFuzzyValue(fuzzyValue);
+  }
+
 }
 
 function wme_to_condition(w: WME): Condition {
@@ -707,7 +775,7 @@ function const_test_node_activation(node: TestNode, w: WME, add: boolean) {
     return false;
   }
   if (node.output_memory) {
-    alpha_memory_activation(node.output_memory, w, add);
+    alpha_memory_activation(node.output_memory, node.wme_to_propagate(w), add);
   }
   for (const c of node.children) {
     const_test_node_activation(c, w, add);
@@ -1037,23 +1105,56 @@ function wme_passes_constant_tests(w: WME, c: Condition) {
   return true;
 }
 
-// pg 35: dataflow version
-function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) {
-  let currentNode = r.alpha_top;
-  for (let f = 0; f < WMEFieldType.NumFields; ++f) {
-    const sym = c.attrs[f].v;
-    if (c.attrs[f].type == FieldType.Const) {
-      currentNode = build_or_share_constant_test_node(r, currentNode, f, sym);
-    } else {
-      for(let f2 = f + 1; f2 < WMEFieldType.NumFields; ++f2) {
-        if(c.attrs[f2].type == FieldType.Var && sym === c.attrs[f2].v) {
-          currentNode = build_or_share_intra_test_node(r, currentNode, f, f2);
-        }
+export interface FuzzyVariable {
+  getName(): string;
+  isFuzzyValue(fuzzyValue: string): boolean;
+  computeMembershipValueForFuzzyValue(fuzzyValue: string, val: number): number;
+  computeValueForFuzzyMembershipValue(fuzzyValue: string, μ: number): number;
+  computeConjunction(fuzzyValue: string, ...μs: number[]): number;
+  computeDisjunction(fuzzyValue: string, ...μs: number[]): number;
+}
+
+function build_or_share_fuzzy_test_node(r: Rete, parent: TestNode, fuzzyVariable: string, fuzzyValue: string) {
+  assert.strict(parent != null);
+  // look for pre-existing node
+  for (const child of parent.children) {
+    if (child instanceof FuzzyTestNode) {
+      if (child.fuzzyValue == fuzzyVariable && child.fuzzyValue == fuzzyValue) {
+        return child;
       }
     }
   }
-  for (const arithTest of c.intraArithTests) {
-    currentNode = build_intra_arith_test_node(r, currentNode, arithTest, c);
+  // build a new node
+  const newnode = new FuzzyTestNode(r.getFuzzySystem(fuzzyVariable), fuzzyVariable, fuzzyValue, null, parent);
+  r.consttestnodes.push(newnode);
+  console.log(`build_fuzzy_test_node_if_needed fuzzytestnode: %${newnode}\n`);
+  parent.children.push(newnode);
+  return newnode;
+}
+
+// pg 35: dataflow version
+function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) {
+  let currentNode = r.alpha_top;
+  const attr = c.attrs[WMEFieldType.Attr];
+  const val = c.attrs[WMEFieldType.Val];
+  if(attr.type === FieldType.Const && val.type === FieldType.Const && r.isFuzzyDomainVariable(attr.v, val.v)) {
+    currentNode = build_or_share_fuzzy_test_node(r, currentNode, attr.v, val.v);
+  } else {
+    for (let f = 0; f < WMEFieldType.NumFields; ++f) {
+      const sym = c.attrs[f].v;
+      if (c.attrs[f].type == FieldType.Const) {
+        currentNode = build_or_share_constant_test_node(r, currentNode, f, sym);
+      } else {
+        for (let f2 = f + 1; f2 < WMEFieldType.NumFields; ++f2) {
+          if (c.attrs[f2].type == FieldType.Var && sym === c.attrs[f2].v) {
+            currentNode = build_or_share_intra_test_node(r, currentNode, f, f2);
+          }
+        }
+      }
+    }
+    for (const arithTest of c.intraArithTests) {
+      currentNode = build_intra_arith_test_node(r, currentNode, arithTest, c);
+    }
   }
 
   if (currentNode.output_memory != null) {

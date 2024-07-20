@@ -5,10 +5,11 @@ import {
   ConditionArithTest,
   ConditionArithVar,
   ConstTestNode,
-  Field,
+  Field, FuzzyWME,
   Rete,
   TestNode,
-  WME
+  WME,
+  FuzzyVariable,
 } from '../index.js';
 
 describe('The library', () => {
@@ -335,4 +336,63 @@ describe('The library', () => {
     console.log("====\n");
   });
 
+
+  it('works with fuzzy condition', () => {
+    console.log("====fuzzy condition:====\n");
+    const rete = new Rete();
+
+    class FoodFuzzyVariable implements FuzzyVariable {
+      computeMembershipValueForFuzzyValue(fuzzyValue: string, val: number): number {
+        //only one variable
+        const a = -1;
+        const c = 0.9;
+        return 1/(1 + Math.exp(a * (val - c)))
+      }
+
+      computeValueForFuzzyMembershipValue(fuzzyValue: string, μ: number): number {
+        return 0; //dummy
+      }
+
+      getName(): string {
+        return "food";
+      }
+
+      isFuzzyValue(fuzzyValue: string): boolean {
+        return fuzzyValue === "excellent";
+      }
+
+      computeConjunction(fuzzyValue: string, ...μs: number[]): number {
+        return 0; //dummy
+      }
+
+      computeDisjunction(fuzzyValue: string, ...μs: number[]): number {
+        return 0; //dummy
+      }
+
+    }
+
+    const foodFuzzySystem = new FoodFuzzyVariable();
+    rete.addFuzzySystem(foodFuzzySystem);
+
+    console.log("adding production\n");
+
+    const condition1 = new Condition(
+      Field.var("x"),
+      Field.constant("food"),
+      Field.constant("excellent"));
+    let lhs = [condition1];
+    const p = rete.addProduction(lhs, "fuzzy inference");
+
+    console.log("added production\n");
+
+    rete.addWME(new WME("B1", "food", "0.3"));
+    expect(p.items.length).to.equal(1);
+    expect((p.items[0].wme as FuzzyWME).μ).to.closeTo(0.45, 0.1);
+
+    rete.addWME(new WME("B2", "food", "0.9"));
+    expect(p.items.length).to.equal(2);
+    expect((p.items[1].wme as FuzzyWME).μ).to.closeTo(0.5, 0.1);
+
+    console.log("====\n");
+  });
 })
