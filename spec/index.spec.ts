@@ -9,7 +9,7 @@ import {
   Rete,
   TestNode,
   WME,
-  FuzzySystem,
+  FuzzyVariable,
 } from '../index.js';
 
 describe('The library', () => {
@@ -341,15 +341,15 @@ describe('The library', () => {
     console.log("====fuzzy condition:====\n");
     const rete = new Rete();
 
-    class FoodFuzzySystem implements FuzzySystem {
-      computeMembershipForFuzzyDomainVariable(fuzzyVariable: string, val: number): number {
+    class FoodFuzzyVariable implements FuzzyVariable {
+      computeMembershipValueForFuzzyValue(fuzzyValue: string, val: number): number {
         //only one variable
         const a = -1;
         const c = 0.9;
         return 1/(1 + Math.exp(a * (val - c)))
       }
 
-      computeValueForFuzzyMembershipValue(fuzzyVariable: string, μ: number): number {
+      computeValueForFuzzyMembershipValue(fuzzyValue: string, μ: number): number {
         return 0; //dummy
       }
 
@@ -357,13 +357,21 @@ describe('The library', () => {
         return "food";
       }
 
-      isFuzzyDomainVariable(fuzzyVariable: string): boolean {
-        return fuzzyVariable === "excellent";
+      isFuzzyValue(fuzzyValue: string): boolean {
+        return fuzzyValue === "excellent";
+      }
+
+      computeConjunction(fuzzyValue: string, ...μs: number[]): number {
+        return 0; //dummy
+      }
+
+      computeDisjunction(fuzzyValue: string, ...μs: number[]): number {
+        return 0; //dummy
       }
 
     }
 
-    const foodFuzzySystem = new FoodFuzzySystem();
+    const foodFuzzySystem = new FoodFuzzyVariable();
     rete.addFuzzySystem(foodFuzzySystem);
 
     console.log("adding production\n");

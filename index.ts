@@ -238,31 +238,31 @@ export class IntraTestNode extends TestNode {
 }
 
 export class FuzzyTestNode extends TestNode {
-  fuzzyDomain: string;
   fuzzyVariable: string;
-  fuzzySystem: FuzzySystem;
+  fuzzyValue: string;
+  fuzzySystem: FuzzyVariable;
 
-  constructor(fuzzySystem: FuzzySystem, fuzzyDomain: string, fuzzyVariable: string, output_memory: AlphaMemory | null, parent: TestNode) {
+  constructor(fuzzySystem: FuzzyVariable, fuzzyVariable: string, fuzzyValue: string, output_memory: AlphaMemory | null, parent: TestNode) {
     super(output_memory);
     this.fuzzySystem = fuzzySystem;
-    this.fuzzyDomain = fuzzyDomain;
     this.fuzzyVariable = fuzzyVariable;
+    this.fuzzyValue = fuzzyValue;
   }
 
   testWme(w: WME): boolean {
-    if(w.fields[WMEFieldType.Attr] !== this.fuzzyDomain) return false;
+    if(w.fields[WMEFieldType.Attr] !== this.fuzzyVariable) return false;
     if(Number.isNaN(parseFloat(w.fields[WMEFieldType.Val]))) return false;
     return true;
   }
 
   wme_to_propagate(w: WME): WME {
     const normalized = parseFloat(w.fields[WMEFieldType.Val]);
-    const μ = this.fuzzySystem.computeMembershipForFuzzyDomainVariable(this.fuzzyVariable, normalized);
-    return new FuzzyWME(w.fields[WMEFieldType.Ident], this.fuzzyDomain, this.fuzzyVariable, μ);
+    const μ = this.fuzzySystem.computeMembershipValueForFuzzyValue(this.fuzzyValue, normalized);
+    return new FuzzyWME(w.fields[WMEFieldType.Ident], this.fuzzyVariable, this.fuzzyValue, μ);
   }
 
   toString(): string {
-    return "(fuzzy-test " + this.fuzzyDomain + " " + this.fuzzyVariable + ")";
+    return "(fuzzy-test " + this.fuzzyVariable + " " + this.fuzzyValue + ")";
   }
 }
 
@@ -612,7 +612,7 @@ export class Rete {
   // presupposes knowledge of a collection of WMEs
   working_memory: WME[] = [];
 
-  fuzzySystems: FuzzySystem[] = [];
+  fuzzySystems: FuzzyVariable[] = [];
 
   constructor() {
     this.alpha_top = new DummyTestNode();
@@ -635,7 +635,7 @@ export class Rete {
     return get_incomplete_tokens_for_production(this, rhs);
   }
 
-  addFuzzySystem(fs: FuzzySystem) {
+  addFuzzySystem(fs: FuzzyVariable) {
     this.fuzzySystems.push(fs);
   }
 
@@ -649,10 +649,10 @@ export class Rete {
     return found;
   }
 
-  isFuzzyDomainVariable(fuzzyDomain: string, fuzzyVariable: string) {
-    if(!this.isFuzzySystem(fuzzyDomain)) return false;
-    const fuzzySystem = this.getFuzzySystem(fuzzyDomain);
-    return fuzzySystem.isFuzzyDomainVariable(fuzzyVariable);
+  isFuzzyDomainVariable(fuzzyVariable: string, fuzzyValue: string) {
+    if(!this.isFuzzySystem(fuzzyVariable)) return false;
+    const fuzzySystem = this.getFuzzySystem(fuzzyVariable);
+    return fuzzySystem.isFuzzyValue(fuzzyValue);
   }
 
 }
@@ -1105,25 +1105,27 @@ function wme_passes_constant_tests(w: WME, c: Condition) {
   return true;
 }
 
-export interface FuzzySystem {
+export interface FuzzyVariable {
   getName(): string;
-  isFuzzyDomainVariable(fuzzyVariable: string): boolean;
-  computeMembershipForFuzzyDomainVariable(fuzzyVariable: string, val: number): number;
-  computeValueForFuzzyMembershipValue(fuzzyVariable: string, μ: number): number;
+  isFuzzyValue(fuzzyValue: string): boolean;
+  computeMembershipValueForFuzzyValue(fuzzyValue: string, val: number): number;
+  computeValueForFuzzyMembershipValue(fuzzyValue: string, μ: number): number;
+  computeConjunction(fuzzyValue: string, ...μs: number[]): number;
+  computeDisjunction(fuzzyValue: string, ...μs: number[]): number;
 }
 
-function build_or_share_fuzzy_test_node(r: Rete, parent: TestNode, fuzzyDomain: string, fuzzyVariable: string) {
+function build_or_share_fuzzy_test_node(r: Rete, parent: TestNode, fuzzyVariable: string, fuzzyValue: string) {
   assert.strict(parent != null);
   // look for pre-existing node
   for (const child of parent.children) {
     if (child instanceof FuzzyTestNode) {
-      if (child.fuzzyVariable == fuzzyDomain && child.fuzzyVariable == fuzzyVariable) {
+      if (child.fuzzyValue == fuzzyVariable && child.fuzzyValue == fuzzyValue) {
         return child;
       }
     }
   }
   // build a new node
-  const newnode = new FuzzyTestNode(r.getFuzzySystem(fuzzyDomain), fuzzyDomain, fuzzyVariable, null, parent);
+  const newnode = new FuzzyTestNode(r.getFuzzySystem(fuzzyVariable), fuzzyVariable, fuzzyValue, null, parent);
   r.consttestnodes.push(newnode);
   console.log(`build_fuzzy_test_node_if_needed fuzzytestnode: %${newnode}\n`);
   parent.children.push(newnode);
