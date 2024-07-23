@@ -7,7 +7,7 @@ import {
   ConstTestNode,
   Field, FuzzySystem,
   FuzzyVariable,
-  FuzzyWME,
+  FuzzyWME, NegativeCondition,
   Rete,
   TestNode,
   WME,
@@ -488,4 +488,72 @@ describe('The library', () => {
 
     console.log("====\n");
   });
+
+  it('works with negative conditions when adding WMEs first', () => {
+    console.log("====negative conditions when adding WMEs first:====\n");
+    const rete = new Rete();
+
+    rete.addWME(new WME("B1", "on", "B2"));
+
+    rete.addWME(new WME("B3", "on", "B1"));
+
+    console.log("adding production\n");
+
+    let lhs = [
+      new Condition(
+        Field.var("x"),
+        Field.constant("on"),
+        Field.var("y")),
+      new NegativeCondition([
+        new Condition(
+          Field.var("z"),
+          Field.constant("on"),
+          Field.var("x")),
+      ])
+    ];
+    const p = rete.addProduction(lhs, "prod1");
+
+    console.log("added production\n");
+
+    expect(p.items.length).to.equal(0);
+
+    console.log("====\n");
+  });
+
+  it('works with negative conditions when adding production first', () => {
+    console.log("====negative conditions when adding production first:====\n");
+    const rete = new Rete();
+
+
+    console.log("adding production\n");
+
+    let lhs = [
+      new Condition(
+        Field.var("x"),
+        Field.constant("on"),
+        Field.var("y")),
+      new NegativeCondition([
+        new Condition(
+          Field.var("z"),
+          Field.constant("on"),
+          Field.var("x")),
+      ])
+    ];
+    const p = rete.addProduction(lhs, "prod1");
+
+    console.log("added production\n");
+
+    const w1 = new WME("B1", "on", "B2");
+    console.log('Adding ' + w1);
+    rete.addWME(w1);
+    expect(p.items.length).to.equal(1);
+
+    const w2 = new WME("B3", "on", "B1");
+    console.log('Adding ' + w2);
+    rete.addWME(w2);
+    expect(p.items.length).to.equal(1);
+
+    console.log("====\n");
+  });
+
 })
