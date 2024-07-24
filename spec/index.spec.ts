@@ -516,6 +516,7 @@ describe('The library', () => {
 
     console.log("added production\n");
 
+    p.items.forEach(t => console.log(t.toString()));
     expect(p.items.length).to.equal(1);
 
     console.log("====\n");

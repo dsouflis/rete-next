@@ -449,6 +449,11 @@ class BetaMemory extends Identifiable{
     let fullToken: Token;
     console.log('join_activation' + (add?"[add]":"[remove]") + '| ' + this + ' on ' + t + ' and '+ w);
     if (add) {
+      const found = this.items.find(t1 => tokenIsParentAndWME(t1, t, w));
+      if(found) {
+        this.negProd?.addProvisionalNegativeToken(found);
+        return;
+      }
       fullToken = new Token(w, t);
       this.items = [fullToken, ...this.items];
       this.negProd?.addProvisionalNegativeToken(fullToken);
@@ -456,13 +461,14 @@ class BetaMemory extends Identifiable{
         child.beta_activation(fullToken, add);
       }
     } else {
-      const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
-      assert.strict(toRemove.length === 1);
-      fullToken = toRemove[0];
-      for (let child of this.children) {
-        child.beta_activation(fullToken, add);
+      const found = this.items.find(t1 => tokenIsParentAndWME(t1, t, w));
+      assert.strict(found);
+      if (found) {
+        for (let child of this.children) {
+            child.beta_activation(found, add);
+        }
+        this.items = this.items.filter(t1 => t1 !== found);
       }
-      this.items = this.items.filter(t1 => t1 !== fullToken);
     }
   }
 
@@ -662,7 +668,7 @@ class NegativeProductionNode extends ProductionNode {
         w.fields[WMEFieldType.Val] === this.rhs
       );
       if(!foundNegativeToken) {
-        this.r.addWME(new WME('#not', t?.toString() || '', this.rhs));
+        this.addProvisionalNegativeToken(t!);
       }
     }
   }
@@ -671,8 +677,17 @@ class NegativeProductionNode extends ProductionNode {
     return "(negative-production " + this.rhs + ")";
   }
 
+  negativeWmes: {[key:string]: WME} = {};
+
   addProvisionalNegativeToken(t: Token) {
-    const wme = new WME('#not', t.toString(), this.rhs);
+    const tokenToString = t.toString();
+    let wme: WME;
+    if(this.negativeWmes[tokenToString]) {
+      wme = this.negativeWmes[tokenToString];
+    } else {
+      wme = new WME('#not', tokenToString, this.rhs);
+      this.negativeWmes[tokenToString] = wme;
+    }
     console.log("addProvisionalNegativeToken| " + this + " for " + wme);
     this.r.addWME(wme);
   }
@@ -1306,20 +1321,22 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       console.log(`added negative production prod: %${negProd} | parent: %${negProd.parent}\n`);
       j.children.push(negProd);
       r.negativeProductions.push(negProd);
+      if (j.bmem_src) {
+        j.bmem_src.negProd = negProd;
+        update_new_node_with_matches_from_above(j.bmem_src);
+      }
 
       cond = new Condition(Field.constant('#not'),Field.var('_'),Field.constant(negProd.rhs));
-    }
-    tests = get_join_tests_from_condition(r, cond, earlierConds);
-    am = build_or_share_alpha_memory_dataflow(r, cond);
-    if (i > 0 || j) { // get the current beta memory node M[i]
-      currentBeta = build_or_share_beta_memory_node(r, currentJoin!);
-      if(negProd !== null) {
-        currentBeta.setNegativeProduction(negProd);
-      }
     }
     // get the join node J[i] for condition c[u[
     tests = get_join_tests_from_condition(r, cond, earlierConds);
     am = build_or_share_alpha_memory_dataflow(r, cond);
+    if (i > 0 || j) { // get the current beta memory node M[i]
+      currentBeta = build_or_share_beta_memory_node(r, currentJoin!);
+      // if(negProd !== null) {
+      //   currentBeta.setNegativeProduction(negProd);
+      // }
+    }
     currentJoin = build_or_share_join_node(r, currentBeta, am, tests);
     earlierConds.push(cond);
   }
