@@ -436,7 +436,7 @@ class BetaMemory extends Identifiable{
   parent: JoinNode; // invariant: must be valid.
   items: Token[] = [];
   children: JoinNode[] = [];
-  intProd: NegativeProductionNode | null = null;
+  negProd: NegativeProductionNode | null = null;
 
   constructor(parent: JoinNode) {
     super();
@@ -451,7 +451,7 @@ class BetaMemory extends Identifiable{
     if (add) {
       fullToken = new Token(w, t);
       this.items = [fullToken, ...this.items];
-      this.intProd?.addProvisionalNegativeToken(fullToken);
+      this.negProd?.addProvisionalNegativeToken(fullToken);
       for (let child of this.children) {
         child.beta_activation(fullToken, add);
       }
@@ -476,8 +476,8 @@ class BetaMemory extends Identifiable{
     return s;
   }
 
-  setNegativeProduction(intProd: NegativeProductionNode) {
-    this.intProd = intProd;
+  setNegativeProduction(negProd: NegativeProductionNode) {
+    this.negProd = negProd;
   }
 }
 
@@ -630,6 +630,7 @@ class NegativeProductionNode extends ProductionNode {
   r: Rete;
   constructor(r: Rete, parent: JoinNode, rhs: string) {
     super(parent, rhs);
+    this.rhs = rhs + this.id;
     this.r = r;
   }
 
@@ -672,6 +673,7 @@ class NegativeProductionNode extends ProductionNode {
 
   addProvisionalNegativeToken(t: Token) {
     const wme = new WME('#not', t.toString(), this.rhs);
+    console.log("addProvisionalNegativeToken| " + this + " for " + wme);
     this.r.addWME(wme);
   }
 }
@@ -1300,7 +1302,7 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
     if(cond instanceof NegativeCondition) {
       const branchConds = [...earlierConds];
       const j: JoinNode = build_networks_for_conditions(cond.negativeConditions, r, branchConds, currentJoin);
-      negProd = new NegativeProductionNode(r, currentJoin!, "#negative" + idCounter++);
+      negProd = new NegativeProductionNode(r, j, "#negative");
       console.log(`added negative production prod: %${negProd} | parent: %${negProd.parent}\n`);
       j.children.push(negProd);
       r.negativeProductions.push(negProd);
