@@ -515,7 +515,7 @@ describe('The library', () => {
 
     console.log("added production\n");
 
-    expect(p.items.length).to.equal(0);
+    expect(p.items.length).to.equal(1);
 
     console.log("====\n");
   });
@@ -547,11 +547,21 @@ describe('The library', () => {
     console.log('Adding ' + w1);
     rete.addWME(w1);
     expect(p.items.length).to.equal(1);
+    expect(p.items[0].parent?.parent).to.be.null;
+    expect(p.items[0].wme.fields[0]).to.equal('#not');
+    expect(p.items[0].parent?.wme.fields[0]).to.equal('B1');
+    expect(p.items[0].parent?.wme.fields[1]).to.equal('on');
+    expect(p.items[0].parent?.wme.fields[2]).to.equal('B2');
 
     const w2 = new WME("B3", "on", "B1");
     console.log('Adding ' + w2);
     rete.addWME(w2);
     expect(p.items.length).to.equal(1);
+    expect(p.items[0].parent?.parent).to.be.null;
+    expect(p.items[0].wme.fields[0]).to.equal('#not');
+    expect(p.items[0].parent?.wme.fields[0]).to.equal('B3');
+    expect(p.items[0].parent?.wme.fields[1]).to.equal('on');
+    expect(p.items[0].parent?.wme.fields[2]).to.equal('B1');
 
     console.log("====\n");
   });
