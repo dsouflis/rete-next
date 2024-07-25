@@ -728,7 +728,7 @@ export class NccPartnerNode extends BetaMemory {
           found.removeFromNccResults(t, w);
           if (found.nccResults?.length === 0) {
             for (const child of this.nccNode!.children) {
-              child.beta_activation(found, add);
+              child.beta_activation(found, true);
             }
           }
         }

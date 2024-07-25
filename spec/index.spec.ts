@@ -497,7 +497,8 @@ describe('The library', () => {
 
     rete.addWME(new WME("B1", "on", "B2"));
 
-    rete.addWME(new WME("B3", "on", "B1"));
+    const w2 = new WME("B3", "on", "B1");
+    rete.addWME(w2);
 
     console.log("adding production\n");
 
@@ -519,6 +520,20 @@ describe('The library', () => {
 
     p.items.forEach(t => console.log(t.toString()));
     expect(p.items.length).to.equal(1);
+    expect(p.items[0].parent?.parent).to.be.null;
+    expect(p.items[0].wme.fields[0]).to.equal('#dummy');
+    expect(p.items[0].parent?.wme.fields[0]).to.equal('B3');
+    expect(p.items[0].parent?.wme.fields[1]).to.equal('on');
+    expect(p.items[0].parent?.wme.fields[2]).to.equal('B1');
+
+    console.log('Deleting ' + w2);
+    rete.removeWME(w2);
+    expect(p.items.length).to.equal(1);
+    expect(p.items[0].parent?.parent).to.be.null;
+    expect(p.items[0].wme.fields[0]).to.equal('#dummy');
+    expect(p.items[0].parent?.wme.fields[0]).to.equal('B1');
+    expect(p.items[0].parent?.wme.fields[1]).to.equal('on');
+    expect(p.items[0].parent?.wme.fields[2]).to.equal('B2');
 
     console.log("====\n");
   });
@@ -550,11 +565,30 @@ describe('The library', () => {
     console.log('Adding ' + w1);
     rete.addWME(w1);
     expect(p.items.length).to.equal(1);
+    expect(p.items[0].parent?.parent).to.be.null;
+    expect(p.items[0].wme.fields[0]).to.equal('#dummy');
+    expect(p.items[0].parent?.wme.fields[0]).to.equal('B1');
+    expect(p.items[0].parent?.wme.fields[1]).to.equal('on');
+    expect(p.items[0].parent?.wme.fields[2]).to.equal('B2');
 
     const w2 = new WME("B3", "on", "B1");
     console.log('Adding ' + w2);
     rete.addWME(w2);
     expect(p.items.length).to.equal(1);
+    expect(p.items[0].parent?.parent).to.be.null;
+    expect(p.items[0].wme.fields[0]).to.equal('#dummy');
+    expect(p.items[0].parent?.wme.fields[0]).to.equal('B3');
+    expect(p.items[0].parent?.wme.fields[1]).to.equal('on');
+    expect(p.items[0].parent?.wme.fields[2]).to.equal('B1');
+
+    console.log('Deleting ' + w2);
+    rete.removeWME(w2);
+    expect(p.items.length).to.equal(1);
+    expect(p.items[0].parent?.parent).to.be.null;
+    expect(p.items[0].wme.fields[0]).to.equal('#dummy');
+    expect(p.items[0].parent?.wme.fields[0]).to.equal('B1');
+    expect(p.items[0].parent?.wme.fields[1]).to.equal('on');
+    expect(p.items[0].parent?.wme.fields[2]).to.equal('B2');
 
     console.log("====\n");
   });
