@@ -564,6 +564,7 @@ class JoinNode extends Identifiable {
     console.log('α-activation| #' + this.id + ' ' + (add?"[add]":"[del]") + this + ' on ' + w);
     if (this.bmem_src) {
       for (const t of this.bmem_src.items) {
+        if(t.nccResults && t.nccResults.length) continue;
         if (!this.perform_join_tests(t, w)) continue;
         for (const child of this.children) child.join_activation(t, w, add);
       }
@@ -617,9 +618,9 @@ export class ProductionNode extends BetaMemory {
 
   join_activation(t: Token | null, w: WME, add: boolean) {
     if (add) {
-    t = new Token(w, t);
-    this.items.push(t);
-    console.log("## (PROD " + t + " ~ " + this.rhs + ") ##\n");
+      t = new Token(w, t);
+      this.items.push(t);
+      console.log("## (PROD " + t + " ~ " + this.rhs + ") ##\n");
     } else {
       const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
       this.items = this.items.filter(t1 => !tokenIsParentAndWME(t1, t, w));

@@ -523,7 +523,6 @@ describe('The library', () => {
     console.log("====\n");
   });
 
-/*
   it('works with negative conditions when adding production first', () => {
     console.log("====negative conditions when adding production first:====\n");
     const rete = new Rete();
@@ -559,6 +558,5 @@ describe('The library', () => {
 
     console.log("====\n");
   });
-*/
 
 })
