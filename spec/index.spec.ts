@@ -56,7 +56,6 @@ class MinMaxFuzzySystem implements FuzzySystem {
 }
 
 describe('The library', () => {
-/*
 // add simple WME to match a production with 1 element.
 // First add production, then add WME
   it('works when first adding production, then adding WME', () => {
@@ -489,7 +488,6 @@ describe('The library', () => {
 
     console.log("====\n");
   });
-*/
 
   it('works with negative conditions when adding WMEs first', () => {
     console.log("====negative conditions when adding WMEs first:====\n");
