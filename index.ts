@@ -914,7 +914,7 @@ function get_incomplete_tokens_for_production(r: Rete, rhs: string): Condition[]
 // pg 21
 function alpha_memory_activation(node: AlphaMemory, w: WME, add: boolean) {
   if (add) {
-  node.items = [(w), ...node.items];
+    node.items = [(w), ...node.items];
   }
   console.log("alpha_memory_activation" + (add?"[add]":"[del]") + "| node: " + node + " | wme: " + w + "\n");
   for (const child of node.successors) child.alpha_activation(w, add);
@@ -942,7 +942,7 @@ function const_test_node_activation(node: TestNode, w: WME, add: boolean) {
 // pg 14
 function addWME(r: Rete, w: WME, add: boolean) {
   if (add) {
-  r.working_memory.push(w);
+    r.working_memory.push(w);
   }
   const_test_node_activation(r.alpha_top, w, add);
   if(!add) {
