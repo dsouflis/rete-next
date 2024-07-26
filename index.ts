@@ -1135,9 +1135,9 @@ export class Condition {
 }
 
 export class NegativeCondition {
-  negativeConditions: Condition[] = [];
+  negativeConditions: GenericCondition[] = [];
 
-  constructor(negativeConditions: Condition[]) {
+  constructor(negativeConditions: GenericCondition[]) {
     this.negativeConditions = negativeConditions;
   }
 }
