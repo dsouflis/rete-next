@@ -20,5 +20,12 @@ to retrieve partial matches (initial version exists).
 The ability to do arithmetic tests between variables, intra-condition, or across conditions, was added. It is the Inference
 Engine's responsibility to classify arithmetic tests into intra-condition or across-condition tests.
 
+### Removal of WMEs
+A re-match based implementation of WME removals was added.
+
 ### Fuzzy inference
 For working with fuzzy sets, the concept of a Fuzzy Variable has been added. See [here](./README-fuzzy.md).
+
+### NCCs (Negated Conjunctive Conditions)
+An implementation of negated conjunctive conditions has been added, based on the ideas in theDoorenbos thesis. 
+It was reimplemented to work with re-match based removals.
