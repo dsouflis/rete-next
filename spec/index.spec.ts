@@ -4,10 +4,12 @@ import {
   ConditionArithConst,
   ConditionArithTest,
   ConditionArithVar,
+  ConditionSymbolicConst,
   ConstTestNode,
   Field, FuzzySystem,
   FuzzyVariable,
-  FuzzyWME, NegativeCondition,
+  FuzzyWME,
+  NegativeCondition,
   Rete,
   TestNode,
   WME,
@@ -387,6 +389,29 @@ describe('The library', () => {
     console.log("====\n");
   });
 
+  it('works with equality condition even when values are non numeric', () => {
+    console.log("====equality condition even when values are non numeric:====\n");
+    const rete = new Rete();
+
+    console.log("adding production\n");
+
+    const condition1 = new Condition(
+      Field.var("x"),
+      Field.constant("on"),
+      Field.var("y"));
+    let lhs = [condition1];
+    condition1.intraArithTests.push(new ConditionArithTest(new ConditionArithVar("y"), '<>', new ConditionSymbolicConst("table")));
+    const p = rete.addProduction(lhs, "caloric deficit");
+
+    console.log("added production\n");
+
+    rete.addWME(new WME("B1", "on", "B2"));
+    rete.addWME(new WME("B3", "on", "table"));
+    expect(p.items.length).to.equal(1);
+
+    console.log("====\n");
+  });
+
 
   it('works with fuzzy condition', () => {
     console.log("====fuzzy condition:====\n");
@@ -481,6 +506,9 @@ describe('The library', () => {
     const p3 = rete.addProduction(lhs3, "medium tip");
 
     console.log("added productions\n");
+    console.log(lhs1.map(c => c.toString()).join(' '),'⇒', p1.rhs);
+    console.log(lhs2.map(c => c.toString()).join(' '),'⇒', p2.rhs);
+    console.log(lhs3.map(c => c.toString()).join(' '),'⇒', p3.rhs);
 
     rete.addWME(new WME("B1", "food", "0.3"));
     rete.addWME(new WME("B1", "service", "0.9"));
@@ -669,6 +697,6 @@ describe('The library', () => {
 
 
     console.log("====\n");
-  })
+  });
 
 })

@@ -18,7 +18,12 @@ to retrieve partial matches (initial version exists).
 
 ### Arithmetic tests
 The ability to do arithmetic tests between variables, intra-condition, or across conditions, was added. It is the Inference
-Engine's responsibility to classify arithmetic tests into intra-condition or across-condition tests.
+Engine's responsibility to classify arithmetic tests into intra-condition or across-condition tests. Comparison is
+lenient, to an accuracy of 1e-6.
+
+### Equality tests
+As a special case, when a test involves equality comparisons, (_ = _) or (_ <> _), and both operands evaluate to symbols,
+the test is done between symbols and not arithmetically.
 
 ### Removal of WMEs
 A re-match based implementation of WME removals was added.

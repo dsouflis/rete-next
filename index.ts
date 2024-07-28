@@ -285,7 +285,11 @@ export interface ArithExpression {
   eval(token: Token | null, w: WME): number;
 }
 
-export class VarExpression implements ArithExpression {
+export interface ArithSymbolicExpression {
+  evalAsString(t: Token | null, w: WME): string;
+}
+
+export class VarExpression implements ArithExpression, ArithSymbolicExpression {
   ix_in_token: number | null;
   field: number;
 
@@ -295,9 +299,15 @@ export class VarExpression implements ArithExpression {
   }
 
   eval(t: Token | null, w: WME): number {
+    const s = this.evalAsString(t, w);
+    return +s;
+  }
+
+  evalAsString(t: Token | null, w: WME) {
     assert.strict(this.ix_in_token === null || t !== null)
     const w2 = this.ix_in_token === null ? w : t!.index(this.ix_in_token);
-    return +w2.fields[this.field];
+    const s = w2.fields[this.field];
+    return s;
   }
 
   toString() {
@@ -316,6 +326,27 @@ export class ConstExpression implements ArithExpression {
   }
 
   eval(t: Token | null, w: WME): number {
+    return this.v;
+  }
+
+  toString() {
+    return this.v.toString();
+  }
+}
+
+export class ConstSymbolicExpression implements ArithExpression, ArithSymbolicExpression {
+  v: string;
+
+  constructor(v: string) {
+    this.v = v;
+  }
+
+  eval(t: Token | null, w: WME): number {
+    assert.strict("Wrong use of const symbolic expression in arithmetic expression" && false);
+    return 0;
+  }
+
+  evalAsString(t: Token | null, w: WME): string {
     return this.v;
   }
 
@@ -374,6 +405,21 @@ export class ArithTestNode extends TestNode implements AbstractTestAtJoinNode {
   }
 
   test(t: Token | null, w: WME): boolean {
+    if(
+      (this.comp === '<>' || this.comp === '=') &&
+      (this.leftOperand instanceof VarExpression || this.leftOperand instanceof ConstSymbolicExpression) &&
+      (this.rightOperand instanceof VarExpression || this.rightOperand instanceof ConstSymbolicExpression)
+    ) {
+      const s1 = (this.leftOperand as unknown as ArithSymbolicExpression).evalAsString(t, w);
+      const s2 = (this.rightOperand as unknown as ArithSymbolicExpression).evalAsString(t, w);
+      if(Number.isNaN(parseFloat(s1)) && Number.isNaN(parseFloat(s2))) {
+        switch (this.comp) {
+          case "=": return s1 === s2;
+          case "<>": return s1 !== s2;
+        }
+      }
+    }
+
     const leftValue = this.leftOperand.eval(t, w);
     const rightValue = this.rightOperand.eval(t, w);
     switch (this.comp) {
@@ -1066,6 +1112,22 @@ export class ConditionArithConst implements ConditionArithExpression {
 
   compileFromConditions(c: Condition, earlierConds: Condition[]): ArithExpression {
     return new ConstExpression(this.v);
+  }
+
+  toString() {
+    return this.v;
+  }
+}
+
+export class ConditionSymbolicConst implements ConditionArithExpression {
+  v: string;
+
+  constructor(v: string) {
+    this.v = v;
+  }
+
+  compileFromConditions(c: Condition, earlierConds: Condition[]): ArithExpression {
+    return new ConstSymbolicExpression(this.v);
   }
 
   toString() {
