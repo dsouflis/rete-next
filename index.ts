@@ -99,12 +99,12 @@ function printFieldType(field: WMEFieldType) {
 
 // pg 21
 export class WME {
-    fields: string[] = ['','',''];
-    get_field(ty: WMEFieldType) : string {
+    fields: any[] = ['','',''];
+    get_field(ty: WMEFieldType) : any {
         return this.fields[ty];
     }
 
-    constructor(id: string, attr: string, val: string) {
+    constructor(id: any, attr: any, val: any) {
         this.fields[WMEFieldType.Ident] = id;
         this.fields[WMEFieldType.Attr] = attr;
         this.fields[WMEFieldType.Val] = val;
@@ -113,7 +113,7 @@ export class WME {
     toString() {
       let s = "(";
       for(let f = 0; f < WMEFieldType.NumFields; ++f) {
-          s += this.fields[f];
+          s += this.fields[f].toString();
           if (f < WMEFieldType.NumFields - 1) s += " ";
       }
       s += ")";
@@ -124,7 +124,7 @@ export class WME {
 export class FuzzyWME extends WME {
   μ: number;
 
-  constructor(id: string, attr: string, val: string, μ: number) {
+  constructor(id: any, attr: any, val: any, μ: number) {
     super(id, attr, val);
     this.μ = μ;
   }
