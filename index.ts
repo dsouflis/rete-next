@@ -439,7 +439,7 @@ export class ArithTestNode extends TestNode implements AbstractTestAtJoinNode {
 }
 
 // pg 22
-class Token {
+export class Token {
   parent: Token | null; // items [0..i-1]
   token_chain_ix: number;
   wme: WME; // item i
