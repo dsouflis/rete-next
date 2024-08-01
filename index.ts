@@ -656,6 +656,8 @@ class JoinNode extends Identifiable {
 // pg 37: inferred
 export class ProductionNode extends BetaMemory {
   rhs: string;
+  itemsToRemoveOnFiring: Token[] = [];
+  itemsToAddOnFiring: Token[] = [];
 
   constructor(parent: JoinNode, rhs: string) {
     super(parent);
@@ -667,13 +669,22 @@ export class ProductionNode extends BetaMemory {
       t = new Token(w, t);
       this.items.push(t);
       console.log("## (PROD " + t + " ~ " + this.rhs + ") ##\n");
+      this.itemsToAddOnFiring.push(t);
     } else {
       const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
       this.items = this.items.filter(t1 => !tokenIsParentAndWME(t1, t, w));
       for(let tokenToRemove of toRemove){
         console.log("## (PROD UNDO " + tokenToRemove + " ~ " + this.rhs + ") ##\n");
+        this.itemsToRemoveOnFiring.push(tokenToRemove);
       }
     }
+  }
+
+  willFire() : [Token[], Token[]] {
+    const ret: [Token[], Token[]] = [this.itemsToAddOnFiring, this.itemsToRemoveOnFiring];
+    this.itemsToAddOnFiring = [];
+    this.itemsToRemoveOnFiring = [];
+    return ret;
   }
 
   toString() {
