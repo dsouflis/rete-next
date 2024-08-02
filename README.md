@@ -34,3 +34,14 @@ For working with fuzzy sets, the concept of a Fuzzy Variable has been added. See
 ### NCCs (Negated Conjunctive Conditions)
 An implementation of negated conjunctive conditions has been added, based on the ideas in theDoorenbos thesis. 
 It was reimplemented to work with re-match based removals.
+
+### "Truth Maintenance"
+A TMS is a separate module from the matcher, but a simple implementation  of what it entails for WME additions 
+can be found in the test [truth-maint.spec.ts](./spec/truth-maint.spec.ts). It might evolve
+into a helper library, but it's really simple and perhaps not worth it. Keep in mind that cycles are not detected by
+this simple implementation.
+
+For each WME that is added by one or more productions, a list of "justifications" is maintained. A justification is a 
+token that was produced, and the name of the production. Whenever a production removes a previously produced token,
+the corresponding justification is removed from the WME. When a WME no longer has any justification, it is retracted,
+causing the same logic to take effect for other productions, perhaps.
