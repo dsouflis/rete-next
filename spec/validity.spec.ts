@@ -4,7 +4,7 @@ import {
   ValidityLeftOpen,
   Context,
   combineValidities
-} from '../validity.js'
+} from '../validity.js';
 
 describe('combineValidities', () => {
   it('works for v1 strictly before closed v2', () => {

@@ -82,7 +82,22 @@ export function combineValidities(v1: Validity, v2: Validity): Validity | null {
       } else {
         return new ValidityLeftClosed(contextMax(v1.first, v2.first), contextMin(v1.last, v2.last));
       }
+    } else if(v1 instanceof ValidityLeftOpen && v2 instanceof ValidityLeftOpen) {
+      return new ValidityLeftOpen(contextMax(v1.first, v2.first));
     }
   }
   return null;
+}
+
+export function combineSetsOfValidities(s1: Validity[], s2: Validity[]): Validity[] {
+  const ret: Validity[] = [];
+  for (const s1Element of s1) {
+    for (const s2Element of s2) {
+      const combinedValidities = combineValidities(s1Element, s2Element);
+      if(combinedValidities) {
+        ret.push(combinedValidities);
+      }
+    }
+  }
+  return ret;
 }
