@@ -73,8 +73,8 @@ describe('A user of the library', () => {
   });
 
 
-  it('can maintain the validity intervals', () => {
-    console.log("====maintain the validity intervals:====\n");
+  it('can maintain the validities of facts', () => {
+    console.log("====maintain the validities of facts:====\n");
 
     const rete = new Rete();
 

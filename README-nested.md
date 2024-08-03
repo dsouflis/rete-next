@@ -75,3 +75,24 @@ producing the expected behavior of normal Rete.
 ## Production of hypotheses
 
 A production can also create new contexts. Additions and removals can then happen with respect to those contexts. 
+
+## Sample implementation
+
+This interaction between Rete and the inference engine is showcased in 
+[truth-maint-validity.spec.ts](./spec/truth-maint-validity.spec.ts). The data structures are not representative of
+what an actual implementation that strives to be performant would use, as they are not cross-indexed in all the needed
+ways, but they are sufficient to make the point. 
+It uses an implementation of [validities](./validity.ts) which is tested [independently](./spec/validity.spec.ts). 
+However, the implementation, itself, might be amended in the future. The point is to bring forward the ideas, not to
+present a definitive implementation, which might evolve into a completely separate project, anyway.
+
+The test shows the calculations done at two times during the operation of the inference engine that uses the Rete
+library. 
+
+* The addition of a WME by a production
+* The removal of a WME, used by that production, by a (supposed) other production
+
+You will notice that there are two kinds of justifications: a ProductionJustification, for additions by productions, 
+and an AxiomaticJustification, which is for assertions external to the inference engine. This implementation does not
+constrain the AxiomaticJustifications to be only for the top context. It is assumed that a user of the inference engine
+is at liberty to use it interactively, and maybe supply hypotheses of one's own in any context.
