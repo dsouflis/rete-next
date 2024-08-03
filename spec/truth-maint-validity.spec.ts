@@ -94,7 +94,7 @@ describe('A user of the library', () => {
     const wme1validities: Validity[] = [new ValidityLeftOpen([''])];
     wme1justification.validities = wme1validities;
     justifications.push({wme: wme1, justifications: [wme1justification]});
-    console.log('Adding', wme1.toString(),wme1validities.map(v => v.toString()).join(','));
+    console.log('Adding', wme1.toString(),'{' + wme1validities.map(v => v.toString()).join(',') + '}');
 
     const wme2 = new WME("B2", "left-of", "B3");
     rete.addWME(wme2);
@@ -102,7 +102,7 @@ describe('A user of the library', () => {
     const wme2validities: Validity[] = [new ValidityLeftOpen(['','h1'])];
     wme2justification.validities = wme2validities;
     justifications.push({wme: wme2, justifications: [wme2justification]});
-    console.log('Adding', wme2.toString(),wme2validities.map(v => v.toString()).join(','));
+    console.log('Adding', wme2.toString(),'{' + wme2validities.map(v => v.toString()).join(',') + '}');
 
     const [tokensToAdd, tokensToRemove] = p.willFire();
     expect(tokensToAdd.length).to.equal(1);
@@ -114,7 +114,7 @@ describe('A user of the library', () => {
     justificationForAdded.validities = ofToken;
     justifications.push({ wme: addedWme, justifications: [justificationForAdded]});
     rete.addWME(addedWme);
-    console.log('Adding', addedWme.toString(),ofToken.map(v => v.toString()).join(','),'supposedly by production');
+    console.log('Adding', addedWme.toString(),'{' + ofToken.map(v => v.toString()).join(',') + '}','supposedly by production');
     expect(ofToken.length).to.equal(1);
     expect(ofToken[0]).to.eql(new ValidityLeftOpen(['','h1']));
 
@@ -129,7 +129,7 @@ describe('A user of the library', () => {
     expect(ofTokenNow.length).to.equal(2);
     expect(ofTokenNow[0]).to.eql(new ValidityLeftClosed(['','h1'], ['', 'h1', 'h2', 'h3']));
     expect(ofTokenNow[1]).to.eql(new ValidityLeftOpen(['','h1']));
-    console.log('Currently', addedWme.toString(),ofTokenNow.map(v => v.toString()).join(','),'because the branch was pruned');
+    console.log('Currently', addedWme.toString(),'{' + ofTokenNow.map(v => v.toString()).join(',') + '}','because the branch was pruned');
 
     console.log("====\n");
   });

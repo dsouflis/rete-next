@@ -45,3 +45,8 @@ For each WME that is added by one or more productions, a list of "justifications
 token that was produced, and the name of the production. Whenever a production removes a previously produced token,
 the corresponding justification is removed from the WME. When a WME no longer has any justification, it is retracted,
 causing the same logic to take effect for other productions, perhaps.
+
+### Nested Search Contexts
+
+Given a knowledge base, one might need to explore various hypotheses. These hypotheses can be tried out, validated, and
+perhaps refuted. This activity creates a _Search Space_. This is explained in more detail [here](./README-nested.md).
