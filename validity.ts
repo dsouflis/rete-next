@@ -138,6 +138,7 @@ export function combineSetsOfValidities(s1: Validity[], s2: Validity[]): Validit
       const combinedValidities = combineValidities(s1Element, s2Element);
       if(combinedValidities) {
         ret.push(combinedValidities);
+        break;
       }
     }
   }

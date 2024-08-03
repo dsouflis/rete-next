@@ -119,11 +119,16 @@ describe('A user of the library', () => {
     expect(ofToken[0]).to.eql(new ValidityLeftOpen(['','h1']));
 
     console.log('Now pretend that',wme2.toString(),'is hypothetically retracted after level //h1/h2/h3');
-    wme2justification.validities = [new ValidityLeftClosed(['','h1'], ['', 'h1', 'h2', 'h3'])];
+    //super-context after more restrictive sub-contexts
+    wme2justification.validities = [
+      new ValidityLeftClosed(['','h1'], ['', 'h1', 'h2', 'h3']),
+      new ValidityLeftOpen(['','h1'])
+    ];
     const ofTokenNow = validitiesOfToken(token, justifications);
     justificationForAdded.validities = ofTokenNow;
-    expect(ofTokenNow.length).to.equal(1);
+    expect(ofTokenNow.length).to.equal(2);
     expect(ofTokenNow[0]).to.eql(new ValidityLeftClosed(['','h1'], ['', 'h1', 'h2', 'h3']));
+    expect(ofTokenNow[1]).to.eql(new ValidityLeftOpen(['','h1']));
     console.log('Currently', addedWme.toString(),ofTokenNow.map(v => v.toString()).join(','),'because the branch was pruned');
 
     console.log("====\n");
