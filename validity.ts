@@ -139,6 +139,7 @@ export function combineSetsOfValidities(s1: Validity[], s2: Validity[]): Validit
       if(combinedValidities) {
         ret.push(combinedValidities);
         break;
+        //Not the right strategy but I will revisit how to take into account specific & general validities correctly
       }
     }
   }
