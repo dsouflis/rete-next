@@ -1213,6 +1213,10 @@ export class NegativeCondition {
   constructor(negativeConditions: GenericCondition[]) {
     this.negativeConditions = negativeConditions;
   }
+
+  toString(): string {
+    return '-{' + this.negativeConditions.map(c => c.toString()).join(',') + '}';
+  }
 }
 
 export type GenericCondition = Condition | NegativeCondition;
