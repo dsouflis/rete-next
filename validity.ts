@@ -21,7 +21,7 @@ export class ValidityLeftClosed extends ValidityBase {
   }
 
   toString() {
-    if(contextEqual(this.first, this.last)) return '{' + contextToString(this.first) + '}';
+    if (contextEqual(this.first, this.last)) return '{' + contextToString(this.first) + '}';
     return '[' + contextToString(this.first) + ',' + contextToString(this.last) + ']';
   }
 }
@@ -35,19 +35,19 @@ export class ValidityLeftOpen extends ValidityBase {
 export type Validity = ValidityLeftClosed | ValidityLeftOpen;
 
 function equalToPrefix(c1: Context, c2: Context): boolean {
-  for (let i = 0; i < c1.length; i++){
-    if(c2[i] !== c1[i]) return false;
+  for (let i = 0; i < c1.length; i++) {
+    if (c2[i] !== c1[i]) return false;
   }
   return true;
 }
 
 function contextMin(c1: Context, c2: Context): Context {
-  if(contextStrictlyBefore(c1, c2)) return c1;
+  if (contextStrictlyBefore(c1, c2)) return c1;
   return c2;
 }
 
 function contextMax(c1: Context, c2: Context): Context {
-  if(contextStrictlyBefore(c1, c2)) return c2;
+  if (contextStrictlyBefore(c1, c2)) return c2;
   return c1;
 }
 
@@ -60,16 +60,16 @@ function contextEqual(c1: Context, c2: Context): boolean {
 }
 
 export function contextCommensurate(c1: Context, c2: Context): boolean {
-  for (let i = 0; i < Math.min(c1.length, c2.length); i++){
-    if(c2[i] !== c1[i]) return false;
+  for (let i = 0; i < Math.min(c1.length, c2.length); i++) {
+    if (c2[i] !== c1[i]) return false;
   }
   return true;
 }
 
 function commonPrefix(c1: Context, c2: Context): Context {
   let ret: Context = [];
-  for (let i = 0; i < c1.length; i++){
-    if(c2[i] === c1[i]) {
+  for (let i = 0; i < c1.length; i++) {
+    if (c2[i] === c1[i]) {
       ret.push(c1[i]);
     } else break;
   }
@@ -77,8 +77,8 @@ function commonPrefix(c1: Context, c2: Context): Context {
 }
 
 function validityStrictlyBefore(v1: Validity, v2: Validity): boolean {
-  if(v1 instanceof ValidityLeftOpen) return false;
-  return contextStrictlyBefore(v1.last, v2.first) ;
+  if (v1 instanceof ValidityLeftOpen) return false;
+  return contextStrictlyBefore(v1.last, v2.first);
 }
 
 function combineValiditiesOnSameBranch(v1: Validity, v2: Validity): Validity | null {
@@ -107,13 +107,13 @@ function combineValiditiesOnSameBranch(v1: Validity, v2: Validity): Validity | n
 }
 
 function combineValiditiesOnDiffBranches(v1: Validity, v2: Validity): Validity | null {
-  if(v1 instanceof ValidityLeftOpen && v2 instanceof ValidityLeftOpen) {
+  if (v1 instanceof ValidityLeftOpen && v2 instanceof ValidityLeftOpen) {
     return new ValidityLeftOpen(contextMax(v1.first, v2.first));
-  } else if(v1 instanceof ValidityLeftOpen && v2 instanceof ValidityLeftClosed) {
+  } else if (v1 instanceof ValidityLeftOpen && v2 instanceof ValidityLeftClosed) {
     return new ValidityLeftClosed(contextMax(v1.first, v2.first), v2.last);
-  } else if(v2 instanceof ValidityLeftOpen && v1 instanceof ValidityLeftClosed) {
+  } else if (v2 instanceof ValidityLeftOpen && v1 instanceof ValidityLeftClosed) {
     return new ValidityLeftClosed(contextMax(v1.first, v2.first), v1.last);
-  } else if(v1 instanceof ValidityLeftClosed && v2 instanceof ValidityLeftClosed) {
+  } else if (v1 instanceof ValidityLeftClosed && v2 instanceof ValidityLeftClosed) {
     const cmnPrefix = commonPrefix(v1.last, v2.last);
     return new ValidityLeftClosed(contextMax(v1.first, v2.first), cmnPrefix);
   }
@@ -133,14 +133,17 @@ export function combineValidities(v1: Validity, v2: Validity): Validity | null {
 
 export function combineSetsOfValidities(s1: Validity[], s2: Validity[]): Validity[] {
   const ret: Validity[] = [];
+  // Closed intervals are before open intervals
   for (const s1Element of s1) {
     for (const s2Element of s2) {
       const combinedValidities = combineValidities(s1Element, s2Element);
-      if(combinedValidities) {
+      if (combinedValidities) {
         ret.push(combinedValidities);
-        break;
-        //Not the right strategy but I will revisit how to take into account specific & general validities correctly
       }
+      if (
+        ((s1Element instanceof ValidityLeftClosed) || (s2Element instanceof ValidityLeftClosed))
+        && contextCommensurate(s1Element.first, s2Element.first)
+      ) break;
     }
   }
   return ret;
