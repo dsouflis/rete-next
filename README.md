@@ -53,3 +53,6 @@ perhaps refuted. This activity creates a _Search Space_. This is explained in mo
 
 ### Removal of productions
 Removal of productions was added, taking into account NCC nodes and NCC partner nodes as well.
+
+### Querying
+A simple querying facility was added, using a transiently added production.
