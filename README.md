@@ -47,6 +47,9 @@ the corresponding justification is removed from the WME. When a WME no longer ha
 causing the same logic to take effect for other productions, perhaps.
 
 ### Nested Search Contexts
-
 Given a knowledge base, one might need to explore various hypotheses. These hypotheses can be tried out, validated, and
 perhaps refuted. This activity creates a _Search Space_. This is explained in more detail [here](./README-nested.md).
+
+
+### Removal of productions
+Removal of productions was added, taking into account NCC nodes and NCC partner nodes as well.

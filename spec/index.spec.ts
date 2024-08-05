@@ -699,4 +699,51 @@ describe('The library', () => {
     console.log("====\n");
   });
 
+  it('works when removing production', () => {
+    console.log("====removing production:====\n");
+    const rete = new Rete();
+
+    console.log("adding production\n");
+
+    let lhs = [new Condition(
+      Field.var("x"),
+      Field.constant("on"),
+      Field.var("y"))];
+    const p = rete.addProduction(lhs, "prod1");
+
+    console.log("added production\n");
+
+    rete.removeProduction(p);
+
+    expect(rete.consttestnodes.length).to.equal(1);
+    expect(rete.alphamemories.length).to.equal(0);
+    expect(rete.betamemories.length).to.equal(0);
+    expect(rete.joinnodes.length).to.equal(0);
+    expect(rete.productions.length).to.equal(0);
+
+    console.log("====\n");
+  });
+
+  it("works when querying", () => {
+    console.log("====querying:====\n");
+
+    const rete = new Rete();
+
+    rete.addWME(new WME("B1", "on", "B2"));
+    rete.addWME(new WME("B1", "on", "B3"));
+    rete.addWME(new WME("B1", "color", "red"));
+
+    let lhs = [new Condition(
+      Field.var("x"),
+      Field.constant("on"),
+      Field.var("y"))];
+    const queryResults = rete.query(lhs, ['x', 'y']);
+
+    expect(queryResults.length).to.equal(2);
+    for (const queryResult of queryResults) {
+      console.log(queryResult);
+    }
+
+    console.log("====\n");
+  });
 })

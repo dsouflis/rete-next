@@ -844,6 +844,14 @@ export class Rete {
     return add_production(this, lhs, rhs);
   }
 
+  removeProduction(p: ProductionNode) {
+    remove_production(this, p);
+  }
+
+  query(conds: GenericCondition[], variables: string[]): {[key:string]:string}[] {
+    return query(this, conds, variables);
+  }
+
   getIncompleteTokensForProduction(rhs: string) {
     return get_incomplete_tokens_for_production(this, rhs);
   }
@@ -1473,7 +1481,7 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
 }
 
 // - inferred type of production node:
-export function add_production(r: Rete, lhs: GenericCondition[], rhs: string) {
+function add_production(r: Rete, lhs: GenericCondition[], rhs: string) {
   // pseudocode: pg 33
   // M[1] <- dummy-top-node
   // build/share J[1] (a child of M[1]), the join node for c[1]
@@ -1492,4 +1500,88 @@ export function add_production(r: Rete, lhs: GenericCondition[], rhs: string) {
   // update new-node-with-matches-from-above (the new production node)
   update_new_node_with_matches_from_above(prod);
   return prod;
+}
+
+function query(r: Rete, conds: GenericCondition[], variables: string[]): {[key:string]:string}[] {
+  const locationInToken: {[key:string]:number[]} = {};
+  for (const v of variables) {
+    const [i, f2] = lookup_earlier_cond_with_field(conds, v);
+    if (i == -1)  { assert.strict(f2 == -1); }
+    assert.strict(i != -1); assert.strict(f2 != -1);
+    locationInToken[v] = [i, f2];
+  }
+  const p = add_production(r, conds, "p" + Math.random());
+  const [toAdd, toRemove] = p.willFire();
+  r.removeProduction(p);
+  const ret: {[key:string]:string}[] = [];
+  for (const token of toAdd) {
+    const retItem: {[key:string]:string} = {};
+    for (const v of variables) {
+      const loc = locationInToken[v];
+      retItem[v] = token.index(loc[0]).get_field(loc[1]);
+    }
+    ret.push(retItem);
+  }
+  return ret;
+}
+
+function remove_test_node(r: Rete, t: TestNode) {
+  if(!t.parent) {
+    console.error('Cannot remove test node:', t.toString());
+    return;
+  }
+  if (t.parent.parent) {
+    t.parent.parent.children = t.parent.parent.children.filter(x => x !== t.parent);
+  }
+  r.consttestnodes = r.consttestnodes.filter(x => x !== t);
+}
+
+function remove_alpha_memory(r: Rete, a: AlphaMemory) {
+  if(a.successors.length) {
+    console.error('Cannot remove α-memory:', a.toString());
+    return;
+  }
+  remove_test_node(r, a.parent);
+  r.alphamemories = r.alphamemories.filter(x => x !== a);
+}
+
+function remove_join_node(r: Rete, j: JoinNode) {
+  if(j.children.length) {
+    console.error('Cannot remove join node:', j.toString());
+    return;
+  }
+  j.amem_src.successors = j.amem_src.successors.filter(x => x !== j);
+  if(j.amem_src.successors.length === 0) {
+    remove_alpha_memory(r, j.amem_src);
+  }
+  if (j.bmem_src) {
+    j.bmem_src.children = j.bmem_src.children.filter(x => x !== j);
+    if (j.bmem_src.children.length === 0) {
+      remove_beta_memory(r, j.bmem_src);
+    }
+  }
+  r.joinnodes = r.joinnodes.filter(x => x !== j);
+}
+
+function remove_beta_memory(r: Rete, betaMemory: BetaMemory) {
+  if(betaMemory.children.length) {
+    console.error('Cannot remove β-memory:', betaMemory.toString());
+    return;
+  }
+  betaMemory.parent.children =betaMemory.parent.children.filter(x => x !== betaMemory);
+  if(betaMemory.parent.children.length === 0 && betaMemory.children.length === 0) {
+    remove_join_node(r, betaMemory.parent);
+  }
+  if(betaMemory instanceof NccNode) {
+    remove_beta_memory(r, betaMemory.nccPartnerNode);
+  }
+  if (betaMemory instanceof ProductionNode) {
+    r.productions = r.productions.filter(x => x !== betaMemory);
+  } else {
+    r.betamemories = r.betamemories.filter(x => x !== betaMemory);
+  }
+}
+
+function remove_production(r: Rete, p: ProductionNode) {
+  remove_beta_memory(r, p);
 }
