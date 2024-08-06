@@ -865,7 +865,7 @@ export class AggregateNode extends BetaMemory {
         this.tokensByOwnerToken.push(foundEntry);
       }
       foundEntry.tokens.push(fullToken);
-      const aggregateOnTokens = computeAggregateOnTokens([], {}, foundEntry.tokens, this.aggregateComputation);
+      const aggregateOnTokens = computeAggregateOnTokens(foundEntry.tokens, this.aggregateComputation);
       const wme = new WME(aggregateOnTokens, '#token', owner_t);
       this.alpha.items.push(wme);
       for (const j of this.alpha.successors) {
@@ -887,7 +887,7 @@ export class AggregateNode extends BetaMemory {
         let foundEntry = this.tokensByOwnerToken.find(tb => tb.owner === owner_t);
         if(foundEntry) {
           foundEntry.tokens = foundEntry.tokens.filter(t => t !== fullToken);
-          const aggregateOnTokens = computeAggregateOnTokens([], {}, foundEntry.tokens, this.aggregateComputation);
+          const aggregateOnTokens = computeAggregateOnTokens(foundEntry.tokens, this.aggregateComputation);
           const wme = new WME(aggregateOnTokens, '#token', owner_t);
           this.alpha.items.push(wme);
           for (const j of this.alpha.successors) {
@@ -1344,14 +1344,14 @@ export class NegativeCondition {
 }
 
 export abstract class AggregateComputation<T> {
-  locationsOfVariablesInConditions: LocationsOfVariablesInConditions;
+  locationInToken: LocationsOfVariablesInConditions = {};
   init: T;
 
-  constructor(locationsOfVariablesInConditions: LocationsOfVariablesInConditions, init: T) {
-    this.locationsOfVariablesInConditions = locationsOfVariablesInConditions;
+  constructor(init: T) {
     this.init = init;
   }
 
+  abstract variables(): string[];
   abstract mapper(map: StringToStringMap): T;
   abstract reducer(v1: T, v2: T): T;
   finalizer(v: T): string {
@@ -1361,7 +1361,7 @@ export abstract class AggregateComputation<T> {
 
 export class AggregateCount extends AggregateComputation<number> {
   constructor() {
-    super({}, 0);
+    super(0);
   }
 
   mapper(map: StringToStringMap): any {
@@ -1371,12 +1371,39 @@ export class AggregateCount extends AggregateComputation<number> {
   reducer(v1: any, v2: any): any {
     return v1 + v2;
   }
+
+  variables(): string[] {
+    return [];
+  }
 }
 
-function computeAggregateOnTokens(variables: string[], locationInToken: LocationsOfVariablesInConditions, tokens: Token[], aggr: AggregateComputation<any>): string {
+export class AggregateSum extends AggregateComputation<number> {
+  variable: string;
+
+  constructor(variable: string) {
+    super(0);
+    this.variable = variable;
+  }
+
+  mapper(map: StringToStringMap): number {
+    return map[this.variable] ? +map[this.variable] : 0;
+  }
+
+  reducer(v1: number, v2: number): number {
+    return v1 + v2;
+  }
+
+  variables(): string[] {
+    return [this.variable];
+  }
+}
+
+function computeAggregateOnTokens(tokens: Token[], aggr: AggregateComputation<any>): string {
+  const variables = aggr.variables();
+  const locationInToken = aggr.locationInToken;
   const mappedTokens = tokens.map(t => evalVariablesInToken(Object.keys(locationInToken), locationInToken,t));
-  const evaledTokens = mappedTokens.map(aggr.mapper);
-  const reduced = evaledTokens.reduce(aggr.reducer, aggr.init);
+  const evaledTokens = mappedTokens.map(m => aggr.mapper(m));
+  const reduced = evaledTokens.reduce((a,b) => aggr.reducer(a,b), aggr.init);
   const finalValue = aggr.finalizer(reduced);
   return finalValue;
 }
@@ -1637,7 +1664,11 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       const branchConds = [...earlierConds];
       const j: JoinNode = build_networks_for_conditions(cond.innerConditions, r, branchConds, currentJoin);
       const dummyAlphaMemory = new AlphaMemory(new NeverTestNode());
-      const aggregateNode = new AggregateNode(j, cond.innerConditions.length, cond.aggregateComputation, dummyAlphaMemory);
+      const aggregateComputation = cond.aggregateComputation;
+      const allConditionsForAggregate = [...earlierConds, ...cond.innerConditions];
+      const locationInToken = getLocationsOfVariablesInConditions(aggregateComputation.variables(), allConditionsForAggregate);
+      aggregateComputation.locationInToken = locationInToken;
+      const aggregateNode = new AggregateNode(j, cond.innerConditions.length, aggregateComputation, dummyAlphaMemory);
       j.children.push(aggregateNode);
       const betaMemory = new BetaMemory(currentJoin!);
       currentJoin!.children = [betaMemory, ...currentJoin!.children]; //Always first
