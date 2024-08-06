@@ -1,6 +1,6 @@
 import {expect} from 'chai';
 import {
-  AggregateCondition,
+  AggregateCondition, AggregateCount,
   Condition,
   ConditionArithConst,
   ConditionArithTest,
@@ -760,13 +760,16 @@ describe('The library', () => {
         Field.var("y")
       ),
       new AggregateCondition(
-        new Condition(Field.var("cn"),Field.constant(''),Field.constant('')),
+        "cn",
+        "count",
+        new AggregateCount(),
         [
           new Condition(Field.var("y"), Field.constant("color"), Field.var("c"))
         ]
       )
     ];
     const p = rete.addProduction(lhs, "prod1");
+    console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', p.rhs);
 
     rete.addWME(new WME("B1", "on", "B2"));
     rete.addWME(new WME("B1", "on", "B3"));

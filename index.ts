@@ -438,6 +438,16 @@ export class ArithTestNode extends TestNode implements AbstractTestAtJoinNode {
   }
 }
 
+class TokenTest implements AbstractTestAtJoinNode {
+  test(t: Token | null, w: WME): boolean {
+    return (w.fields[2] instanceof Token) && t !== null && (w.fields[2] as Token).equalTo(t); //fails identity test! Why?
+  }
+
+  toString() {
+    return '(token-test)';
+  }
+}
+
 // pg 22
 export class Token {
   parent: Token | null; // items [0..i-1]
@@ -596,6 +606,7 @@ class TestAtJoinNode implements AbstractTestAtJoinNode {
     return s;
   }
 }
+
 
 
 /// pg 24
@@ -826,10 +837,12 @@ export class AggregateNode extends BetaMemory {
   numberOfConjuncts: number
   alpha: AlphaMemory;
   tokensByOwnerToken: {owner: Token, tokens: Token[]}[] = [];
+  aggregateComputation: AggregateComputation<any>;
 
-  constructor(parent: JoinNode, numberOfConjuncts: number, amem: AlphaMemory) {
+  constructor(parent: JoinNode, numberOfConjuncts: number, aggregateComputation: AggregateComputation<any>, amem: AlphaMemory) {
     super(parent);
     this.numberOfConjuncts = numberOfConjuncts;
+    this.aggregateComputation = aggregateComputation;
     this.alpha = amem;
   }
 
@@ -852,9 +865,8 @@ export class AggregateNode extends BetaMemory {
         this.tokensByOwnerToken.push(foundEntry);
       }
       foundEntry.tokens.push(fullToken);
-      //todo compute new aggregate
-      const agg = foundEntry.tokens.length;
-      const wme = new WME(agg.toString(), '#token', owner_t);
+      const aggregateOnTokens = computeAggregateOnTokens([], {}, foundEntry.tokens, this.aggregateComputation);
+      const wme = new WME(aggregateOnTokens, '#token', owner_t);
       this.alpha.items.push(wme);
       for (const j of this.alpha.successors) {
         j.alpha_activation(wme, true);
@@ -875,9 +887,8 @@ export class AggregateNode extends BetaMemory {
         let foundEntry = this.tokensByOwnerToken.find(tb => tb.owner === owner_t);
         if(foundEntry) {
           foundEntry.tokens = foundEntry.tokens.filter(t => t !== fullToken);
-          //todo compute new aggregate
-          const agg = foundEntry.tokens.length;
-          const wme = new WME(agg.toString(), '#token', owner_t);
+          const aggregateOnTokens = computeAggregateOnTokens([], {}, foundEntry.tokens, this.aggregateComputation);
+          const wme = new WME(aggregateOnTokens, '#token', owner_t);
           this.alpha.items.push(wme);
           for (const j of this.alpha.successors) {
             j.alpha_activation(wme, true);
@@ -908,6 +919,8 @@ function findOwnerToken(t: Token, steps: number): Token {
   if(steps === 0 || t.parent === null) return t!;
   return findOwnerToken(t.parent, steps - 1);
 }
+
+type StringToStringMap = { [key: string]: string };
 
 // no page; hold all global state
 export class Rete {
@@ -947,7 +960,7 @@ export class Rete {
     remove_production(this, p);
   }
 
-  query(conds: GenericCondition[], variables: string[]): {[key:string]:string}[] {
+  query(conds: GenericCondition[], variables: string[]): StringToStringMap[] {
     return query(this, conds, variables);
   }
 
@@ -1330,20 +1343,57 @@ export class NegativeCondition {
   }
 }
 
-export class AggregateCondition {
-  unaryCondition: Condition;
-  innerConditions: GenericCondition[] = [];
-  variables: string[];
+export abstract class AggregateComputation<T> {
+  locationsOfVariablesInConditions: LocationsOfVariablesInConditions;
+  init: T;
 
-  constructor(unaryCondition: Condition, innerConditions: GenericCondition[]) {
-    this.unaryCondition = unaryCondition;
+  constructor(locationsOfVariablesInConditions: LocationsOfVariablesInConditions, init: T) {
+    this.locationsOfVariablesInConditions = locationsOfVariablesInConditions;
+    this.init = init;
+  }
+
+  abstract mapper(map: StringToStringMap): T;
+  abstract reducer(v1: T, v2: T): T;
+  finalizer(v: T): string {
+    return (v as any).toString();
+  }
+}
+
+export class AggregateCount extends AggregateComputation<number> {
+  constructor() {
+    super({}, 0);
+  }
+
+  mapper(map: StringToStringMap): any {
+    return 1;
+  }
+
+  reducer(v1: any, v2: any): any {
+    return v1 + v2;
+  }
+}
+
+function computeAggregateOnTokens(variables: string[], locationInToken: LocationsOfVariablesInConditions, tokens: Token[], aggr: AggregateComputation<any>): string {
+  const mappedTokens = tokens.map(t => evalVariablesInToken(Object.keys(locationInToken), locationInToken,t));
+  const evaledTokens = mappedTokens.map(aggr.mapper);
+  const reduced = evaledTokens.reduce(aggr.reducer, aggr.init);
+  const finalValue = aggr.finalizer(reduced);
+  return finalValue;
+}
+
+export class AggregateCondition extends Condition{
+  innerConditions: GenericCondition[] = [];
+  aggregateComputation: AggregateComputation<any>;
+
+  constructor(variable: string, description: string, aggregateComputation: AggregateComputation<any>, innerConditions: GenericCondition[]) {
+    super(Field.var(variable), Field.constant('='), Field.constant(description));
     this.innerConditions = innerConditions;
-    const attrs = this.unaryCondition.attrs;
-    this.variables = attrs.filter(f => f.type === FieldType.Var).map(f => f.v);
+    const attrs = this.attrs;
+    this.aggregateComputation = aggregateComputation;
   }
 
   toString(): string {
-    return this.unaryCondition.toString() + ' where ' + (this.variables.map(v => v + '=COUNT()')) + ' from {' + this.innerConditions.map(c => c.toString()).join(',') + '}';
+    return super.toString() +' from {' + this.innerConditions.map(c => c.toString()).join(',') + '}';
   }
 }
 
@@ -1587,7 +1637,7 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       const branchConds = [...earlierConds];
       const j: JoinNode = build_networks_for_conditions(cond.innerConditions, r, branchConds, currentJoin);
       const dummyAlphaMemory = new AlphaMemory(new NeverTestNode());
-      const aggregateNode = new AggregateNode(j, cond.innerConditions.length, dummyAlphaMemory);
+      const aggregateNode = new AggregateNode(j, cond.innerConditions.length, cond.aggregateComputation, dummyAlphaMemory);
       j.children.push(aggregateNode);
       const betaMemory = new BetaMemory(currentJoin!);
       currentJoin!.children = [betaMemory, ...currentJoin!.children]; //Always first
@@ -1597,17 +1647,8 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       //Continue underneath
       currentBeta = betaMemory;
       currentJoin = new JoinNode(dummyAlphaMemory, betaMemory);
-      currentJoin.tests.push(new class implements AbstractTestAtJoinNode {
-        test(t: Token | null, w: WME): boolean {
-          return (w.fields[2] instanceof Token) && t !== null && (w.fields[2] as Token).equalTo(t); //fails identity test! Why?
-        }
-
-        toString() {
-          return '(token-test)';
-        }
-      });
+      currentJoin.tests.push(new TokenTest());
       dummyAlphaMemory.successors = [currentJoin];
-      //todo add token-on-attr-test
       betaMemory.children.push(currentJoin)
       r.joinnodes.push(currentJoin);
       update_new_node_with_matches_from_above(betaMemory);
@@ -1651,24 +1692,39 @@ function add_production(r: Rete, lhs: GenericCondition[], rhs: string) {
   return prod;
 }
 
-function query(r: Rete, conds: GenericCondition[], variables: string[]): {[key:string]:string}[] {
-  const locationInToken: {[key:string]:number[]} = {};
+export type LocationsOfVariablesInConditions = { [key: string]: number[] };
+
+export function getLocationsOfVariablesInConditions(variables: string[], conds: GenericCondition[]): LocationsOfVariablesInConditions {
+  const locationInToken: LocationsOfVariablesInConditions = {};
   for (const v of variables) {
     const [i, f2] = lookup_earlier_cond_with_field(conds, v);
-    if (i == -1)  { assert.strict(f2 == -1); }
-    assert.strict(i != -1); assert.strict(f2 != -1);
+    if (i == -1) {
+      assert.strict(f2 == -1);
+    }
+    assert.strict(i != -1);
+    assert.strict(f2 != -1);
     locationInToken[v] = [i, f2];
   }
+  return locationInToken;
+}
+
+export function evalVariablesInToken(variables: string[], locationInToken: LocationsOfVariablesInConditions, token: Token): StringToStringMap {
+  const retItem: StringToStringMap = {};
+  for (const v of variables) {
+    const loc = locationInToken[v];
+    retItem[v] = token.index(loc[0]).get_field(loc[1]);
+  }
+  return retItem;
+}
+
+function query(r: Rete, conds: GenericCondition[], variables: string[]): StringToStringMap[] {
+  const locationInToken = getLocationsOfVariablesInConditions(variables, conds);
   const p = add_production(r, conds, "p" + Math.random());
   const [toAdd, toRemove] = p.willFire();
   r.removeProduction(p);
-  const ret: {[key:string]:string}[] = [];
+  const ret: StringToStringMap[] = [];
   for (const token of toAdd) {
-    const retItem: {[key:string]:string} = {};
-    for (const v of variables) {
-      const loc = locationInToken[v];
-      retItem[v] = token.index(loc[0]).get_field(loc[1]);
-    }
+    const retItem = evalVariablesInToken(variables, locationInToken, token);
     ret.push(retItem);
   }
   return ret;
