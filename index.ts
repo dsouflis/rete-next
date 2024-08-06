@@ -838,10 +838,10 @@ export class AggregateNode extends BetaMemory {
     console.log('join_activation' + (add?"[add]":"[del]") + '| ' + this + ' on ' + t + ' and '+ w);
     if (add) {
       fullToken = new Token(w, t);
-      const owner_t = findOwnerToken(t!, this.numberOfConjuncts);
+      const owner_t = findOwnerToken(t!, this.numberOfConjuncts - 1);
       const found = this.alpha.items.find(w => w.fields[2] === owner_t);
       if(found) {
-        this.alpha.items = this.alpha.items.filter(w => w.fields[2] !== found);
+        this.alpha.items = this.alpha.items.filter(w => w !== found);
         for (const j of this.alpha.successors) {
           j.alpha_activation(found!, false);
         }
@@ -860,24 +860,31 @@ export class AggregateNode extends BetaMemory {
         j.alpha_activation(wme, true);
       }
       this.items = [fullToken, ...this.items];
-    } else { //todo
-      // const foundHere = this.items.find(t1 => tokenIsParentAndWME(t1, t, w));
-      // if (foundHere) {
-      //   fullToken = foundHere;
-      //   this.items = this.items.filter(t1 => t1 !== fullToken);
-      // } else {
-      //   const [owner_t, owner_w] = findOwnerTokenConstituents(t, w, this.numberOfConjuncts);
-      //   const found = this.nccNode && this.nccNode.items.find(t1 => tokenIsParentAndWME(t1, owner_t, owner_w));
-      //   if(found) {
-      //     found.removeFromNccResults(t, w);
-      //     if (found.nccResults?.length === 0) {
-      //       for (const child of this.nccNode!.children) {
-      //         child.beta_activation(found, true);
-      //       }
-      //     }
-      //   }
-      //
-      // }
+    } else {
+      const foundHere = this.items.find(t1 => tokenIsParentAndWME(t1, t, w));
+      if (foundHere) {
+        fullToken = foundHere;
+        const owner_t = findOwnerToken(fullToken, this.numberOfConjuncts );
+        const found = this.alpha.items.find(w => w.fields[2] === owner_t);
+        if(found) {
+          this.alpha.items = this.alpha.items.filter(w => w !== found);
+          for (const j of this.alpha.successors) {
+            j.alpha_activation(found!, false);
+          }
+        }
+        let foundEntry = this.tokensByOwnerToken.find(tb => tb.owner === owner_t);
+        if(foundEntry) {
+          foundEntry.tokens = foundEntry.tokens.filter(t => t !== fullToken);
+          //todo compute new aggregate
+          const agg = foundEntry.tokens.length;
+          const wme = new WME(agg.toString(), '#token', owner_t);
+          this.alpha.items.push(wme);
+          for (const j of this.alpha.successors) {
+            j.alpha_activation(wme, true);
+          }
+        }
+        this.items = this.items.filter(t1 => t1 !== fullToken);
+      }
     }
   }
 
@@ -1593,6 +1600,10 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       currentJoin.tests.push(new class implements AbstractTestAtJoinNode {
         test(t: Token | null, w: WME): boolean {
           return (w.fields[2] instanceof Token) && t !== null && (w.fields[2] as Token).equalTo(t); //fails identity test! Why?
+        }
+
+        toString() {
+          return '(token-test)';
         }
       });
       dummyAlphaMemory.successors = [currentJoin];
