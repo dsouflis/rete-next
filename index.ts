@@ -1357,6 +1357,9 @@ export abstract class AggregateComputation<T> {
   finalizer(v: T): string {
     return (v as any).toString();
   }
+  toString() {
+    return "AGGREGATE()";
+  }
 }
 
 export class AggregateCount extends AggregateComputation<number> {
@@ -1374,6 +1377,10 @@ export class AggregateCount extends AggregateComputation<number> {
 
   variables(): string[] {
     return [];
+  }
+
+  toString(): string {
+    return 'SUM()';
   }
 }
 
@@ -1396,6 +1403,10 @@ export class AggregateSum extends AggregateComputation<number> {
   variables(): string[] {
     return [this.variable];
   }
+
+  toString(): string {
+    return 'SUM(<' + this.variable + '>)';
+  }
 }
 
 function computeAggregateOnTokens(tokens: Token[], aggr: AggregateComputation<any>): string {
@@ -1408,14 +1419,13 @@ function computeAggregateOnTokens(tokens: Token[], aggr: AggregateComputation<an
   return finalValue;
 }
 
-export class AggregateCondition extends Condition{
+export class AggregateCondition extends Condition {
   innerConditions: GenericCondition[] = [];
   aggregateComputation: AggregateComputation<any>;
 
-  constructor(variable: string, description: string, aggregateComputation: AggregateComputation<any>, innerConditions: GenericCondition[]) {
-    super(Field.var(variable), Field.constant('='), Field.constant(description));
+  constructor(variable: string, aggregateComputation: AggregateComputation<any>, innerConditions: GenericCondition[]) {
+    super(Field.var(variable), Field.constant('='), Field.constant(aggregateComputation.toString()));
     this.innerConditions = innerConditions;
-    const attrs = this.attrs;
     this.aggregateComputation = aggregateComputation;
   }
 

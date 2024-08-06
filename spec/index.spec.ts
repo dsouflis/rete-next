@@ -759,14 +759,9 @@ describe('The library', () => {
         Field.constant("on"),
         Field.var("y")
       ),
-      new AggregateCondition(
-        "cn",
-        "count",
-        new AggregateCount(),
-        [
-          new Condition(Field.var("y"), Field.constant("color"), Field.var("c"))
-        ]
-      )
+      new AggregateCondition("cn", new AggregateCount(), [
+        new Condition(Field.var("y"), Field.constant("color"), Field.var("c"))
+      ])
     ];
     const p = rete.addProduction(lhs, "prod1");
     console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', p.rhs);
@@ -802,14 +797,9 @@ describe('The library', () => {
         Field.constant("on"),
         Field.var("y")
       ),
-      new AggregateCondition(
-        "cn",
-        "sum",
-        new AggregateSum("c"),
-        [
-          new Condition(Field.var("y"), Field.constant("order"), Field.var("c"))
-        ]
-      )
+      new AggregateCondition("cn", new AggregateSum("c"), [
+        new Condition(Field.var("y"), Field.constant("order"), Field.var("c"))
+      ])
     ];
     const p = rete.addProduction(lhs, "prod1");
     console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', p.rhs);
