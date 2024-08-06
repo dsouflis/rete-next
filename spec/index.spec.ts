@@ -1,5 +1,6 @@
 import {expect} from 'chai';
 import {
+  AggregateCondition,
   Condition,
   ConditionArithConst,
   ConditionArithTest,
@@ -743,6 +744,46 @@ describe('The library', () => {
     for (const queryResult of queryResults) {
       console.log(queryResult);
     }
+
+    console.log("====\n");
+  });
+
+  it("works with aggregates", () => {
+    console.log("====aggregates:====\n");
+
+    const rete = new Rete();
+
+    let lhs = [
+      new Condition(
+        Field.var("x"),
+        Field.constant("on"),
+        Field.var("y")
+      ),
+      new AggregateCondition(
+        new Condition(Field.var("cn"),Field.constant(''),Field.constant('')),
+        [
+          new Condition(Field.var("y"), Field.constant("color"), Field.var("c"))
+        ]
+      )
+    ];
+    const p = rete.addProduction(lhs, "prod1");
+
+    rete.addWME(new WME("B1", "on", "B2"));
+    rete.addWME(new WME("B1", "on", "B3"));
+    rete.addWME(new WME("B2", "color", "red"));
+    expect(p.items.length).to.equal(1);
+    console.log(p.items[0].toString());
+    expect(p.items[0].wme.fields[0]).to.equal("1");
+
+    rete.addWME(new WME("B2", "color", "black"));
+    expect(p.items.length).to.equal(1);
+    console.log(p.items[0].toString());
+    expect(p.items[0].wme.fields[0]).to.equal("2");
+
+    rete.addWME(new WME("B2", "color", "green"));
+    expect(p.items.length).to.equal(1);
+    console.log(p.items[0].toString());
+    expect(p.items[0].wme.fields[0]).to.equal("3");
 
     console.log("====\n");
   });

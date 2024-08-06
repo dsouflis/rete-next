@@ -509,6 +509,13 @@ export class Token {
       this.nccResults = this.nccResults.filter(t1 => t1 !== found);
     }
   }
+
+  equalTo(t2: Token): boolean {
+    if(this.wme !== t2.wme) return false;
+    if(this.token_chain_ix != t2.token_chain_ix) return false;
+    if(this.token_chain_ix === 0) return true;
+    return this.parent!.equalTo(t2.parent!);
+  }
 }
 
 // pg 22
@@ -626,7 +633,9 @@ class JoinNode extends Identifiable {
     console.log('β-activation| ' + (add?"[add]":"[del]") + this + ' on ' + t);
     for (const w of this.amem_src.items) {
       if (!this.perform_join_tests(t, w)) continue;
-      for (const child of this.children) child.join_activation(t, w, add);
+      for (const child of this.children) {
+        child.join_activation(t, w, add);
+      }
     }
   }
 
@@ -656,8 +665,7 @@ class JoinNode extends Identifiable {
 // pg 37: inferred
 export class ProductionNode extends BetaMemory {
   rhs: string;
-  itemsToRemoveOnFiring: Token[] = [];
-  itemsToAddOnFiring: Token[] = [];
+  oldItems: Token[] = [];
 
   constructor(parent: JoinNode, rhs: string) {
     super(parent);
@@ -669,21 +677,30 @@ export class ProductionNode extends BetaMemory {
       t = new Token(w, t);
       this.items.push(t);
       console.log("## (PROD " + t + " ~ " + this.rhs + ") ##\n");
-      this.itemsToAddOnFiring.push(t);
     } else {
       const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
       this.items = this.items.filter(t1 => !tokenIsParentAndWME(t1, t, w));
       for(let tokenToRemove of toRemove){
         console.log("## (PROD UNDO " + tokenToRemove + " ~ " + this.rhs + ") ##\n");
-        this.itemsToRemoveOnFiring.push(tokenToRemove);
       }
     }
   }
 
   willFire() : [Token[], Token[]] {
-    const ret: [Token[], Token[]] = [this.itemsToAddOnFiring, this.itemsToRemoveOnFiring];
-    this.itemsToAddOnFiring = [];
-    this.itemsToRemoveOnFiring = [];
+    const itemsToRemoveOnFiring: Token[] = [];
+    const itemsToAddOnFiring: Token[] = [];
+    for (const item of this.items) {
+      if(!this.oldItems.find(t => t.equalTo(item))) {
+        itemsToAddOnFiring.push(item);
+      }
+    }
+    for (const item of this.oldItems) {
+      if(!this.items.find(t => t.equalTo(item))) {
+        itemsToRemoveOnFiring.push(item);
+      }
+    }
+    const ret: [Token[], Token[]] = [itemsToAddOnFiring, itemsToRemoveOnFiring];
+    this.oldItems = [...this.items];
     return ret;
   }
 
@@ -805,9 +822,84 @@ export class NccPartnerNode extends BetaMemory {
   }
 }
 
+export class AggregateNode extends BetaMemory {
+  numberOfConjuncts: number
+  alpha: AlphaMemory;
+  tokensByOwnerToken: {owner: Token, tokens: Token[]}[] = [];
+
+  constructor(parent: JoinNode, numberOfConjuncts: number, amem: AlphaMemory) {
+    super(parent);
+    this.numberOfConjuncts = numberOfConjuncts;
+    this.alpha = amem;
+  }
+
+  join_activation(t: Token | null, w: WME, add: boolean) {
+    let fullToken: Token;
+    console.log('join_activation' + (add?"[add]":"[del]") + '| ' + this + ' on ' + t + ' and '+ w);
+    if (add) {
+      fullToken = new Token(w, t);
+      const owner_t = findOwnerToken(t!, this.numberOfConjuncts);
+      const found = this.alpha.items.find(w => w.fields[2] === owner_t);
+      if(found) {
+        this.alpha.items = this.alpha.items.filter(w => w.fields[2] !== found);
+        for (const j of this.alpha.successors) {
+          j.alpha_activation(found!, false);
+        }
+      }
+      let foundEntry = this.tokensByOwnerToken.find(tb => tb.owner === owner_t);
+      if(!foundEntry) {
+        foundEntry = { owner: owner_t, tokens: []};
+        this.tokensByOwnerToken.push(foundEntry);
+      }
+      foundEntry.tokens.push(fullToken);
+      //todo compute new aggregate
+      const agg = foundEntry.tokens.length;
+      const wme = new WME(agg.toString(), '#token', owner_t);
+      this.alpha.items.push(wme);
+      for (const j of this.alpha.successors) {
+        j.alpha_activation(wme, true);
+      }
+      this.items = [fullToken, ...this.items];
+    } else { //todo
+      // const foundHere = this.items.find(t1 => tokenIsParentAndWME(t1, t, w));
+      // if (foundHere) {
+      //   fullToken = foundHere;
+      //   this.items = this.items.filter(t1 => t1 !== fullToken);
+      // } else {
+      //   const [owner_t, owner_w] = findOwnerTokenConstituents(t, w, this.numberOfConjuncts);
+      //   const found = this.nccNode && this.nccNode.items.find(t1 => tokenIsParentAndWME(t1, owner_t, owner_w));
+      //   if(found) {
+      //     found.removeFromNccResults(t, w);
+      //     if (found.nccResults?.length === 0) {
+      //       for (const child of this.nccNode!.children) {
+      //         child.beta_activation(found, true);
+      //       }
+      //     }
+      //   }
+      //
+      // }
+    }
+  }
+
+  toString() {
+    let s  = "(aggregate-node #" + this.id + " items: (";
+    for(let item of this.items) {
+      s += item + ' ';
+    }
+    s += ")| " + this.children.length + " children";
+    s += ")";
+    return s;
+  }
+}
+
 function findOwnerTokenConstituents(t: Token | null, w: WME, steps: number): [Token | null, WME] {
   if(steps === 0 || t === null) return [t, w];
   return findOwnerTokenConstituents(t.parent, t.wme, steps - 1);
+}
+
+function findOwnerToken(t: Token, steps: number): Token {
+  if(steps === 0 || t.parent === null) return t!;
+  return findOwnerToken(t.parent, steps - 1);
 }
 
 // no page; hold all global state
@@ -982,7 +1074,9 @@ function alpha_memory_activation(node: AlphaMemory, w: WME, add: boolean) {
     node.items = [(w), ...node.items];
   }
   console.log("alpha_memory_activation" + (add?"[add]":"[del]") + "| node: " + node + " | wme: " + w + "\n");
-  for (const child of node.successors) child.alpha_activation(w, add);
+  for (const child of node.successors) {
+    child.alpha_activation(w, add);
+  }
   if(!add) {
     node.items = node.items.filter(w1 => w1 !== w);
   }
@@ -1026,7 +1120,9 @@ function update_new_node_with_matches_from_above(beta: BetaMemory) {
   join.children = [ beta ];
 
   // push alpha memory through join node.
-  for(const item of join.amem_src.items) { join.alpha_activation(item, true); }
+  for(const item of join.amem_src.items) {
+    join.alpha_activation(item, true);
+  }
   join.children = savedListOfChildren;
 }
 
@@ -1227,7 +1323,24 @@ export class NegativeCondition {
   }
 }
 
-export type GenericCondition = Condition | NegativeCondition;
+export class AggregateCondition {
+  unaryCondition: Condition;
+  innerConditions: GenericCondition[] = [];
+  variables: string[];
+
+  constructor(unaryCondition: Condition, innerConditions: GenericCondition[]) {
+    this.unaryCondition = unaryCondition;
+    this.innerConditions = innerConditions;
+    const attrs = this.unaryCondition.attrs;
+    this.variables = attrs.filter(f => f.type === FieldType.Var).map(f => f.v);
+  }
+
+  toString(): string {
+    return this.unaryCondition.toString() + ' where ' + (this.variables.map(v => v + '=COUNT()')) + ' from {' + this.innerConditions.map(c => c.toString()).join(',') + '}';
+  }
+}
+
+export type GenericCondition = Condition | NegativeCondition | AggregateCondition;
 
 // implicitly defined on pg 35
 function lookup_earlier_cond_with_field(
@@ -1463,6 +1576,31 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       r.joinnodes.push(currentJoin);
       update_new_node_with_matches_from_above(nccNode);
       update_new_node_with_matches_from_above(nccPartnerNode);
+    } else if(cond instanceof AggregateCondition) {
+      const branchConds = [...earlierConds];
+      const j: JoinNode = build_networks_for_conditions(cond.innerConditions, r, branchConds, currentJoin);
+      const dummyAlphaMemory = new AlphaMemory(new NeverTestNode());
+      const aggregateNode = new AggregateNode(j, cond.innerConditions.length, dummyAlphaMemory);
+      j.children.push(aggregateNode);
+      const betaMemory = new BetaMemory(currentJoin!);
+      currentJoin!.children = [betaMemory, ...currentJoin!.children]; //Always first
+      console.log(`added aggregate node: %${aggregateNode}`);
+
+      console.log(`added β-memory for aggregate node: %${betaMemory}`);
+      //Continue underneath
+      currentBeta = betaMemory;
+      currentJoin = new JoinNode(dummyAlphaMemory, betaMemory);
+      currentJoin.tests.push(new class implements AbstractTestAtJoinNode {
+        test(t: Token | null, w: WME): boolean {
+          return (w.fields[2] instanceof Token) && t !== null && (w.fields[2] as Token).equalTo(t); //fails identity test! Why?
+        }
+      });
+      dummyAlphaMemory.successors = [currentJoin];
+      //todo add token-on-attr-test
+      betaMemory.children.push(currentJoin)
+      r.joinnodes.push(currentJoin);
+      update_new_node_with_matches_from_above(betaMemory);
+      update_new_node_with_matches_from_above(aggregateNode);
     } else {
       // get the join node J[i] for condition c[u[
       tests = get_join_tests_from_condition(r, cond, earlierConds);
