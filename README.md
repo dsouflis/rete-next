@@ -22,7 +22,7 @@ Engine's responsibility to classify arithmetic tests into intra-condition or acr
 lenient, to an accuracy of 1e-6.
 
 ### Equality tests
-As a special case, when a test involves equality comparisons, (_ = _) or (_ <> _), and both operands evaluate to symbols,
+As a special case, when a test involves equality comparisons, (􏿾 = 􏿾) or (􏿾 <> 􏿾), and both operands evaluate to symbols,
 the test is done between symbols and not arithmetically.
 
 ### Removal of WMEs
