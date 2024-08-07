@@ -1,5 +1,6 @@
 import {expect} from 'chai';
 import {
+  AggregateCondition, AggregateCount, AggregateSum,
   Condition,
   ConditionArithConst,
   ConditionArithTest,
@@ -746,4 +747,80 @@ describe('The library', () => {
 
     console.log("====\n");
   });
-})
+
+  it("works with COUNT aggregate", () => {
+    console.log("====COUNT aggregate:====\n");
+
+    const rete = new Rete();
+
+    let lhs = [
+      new Condition(
+        Field.var("x"),
+        Field.constant("on"),
+        Field.var("y")
+      ),
+      new AggregateCondition("cn", new AggregateCount(), [
+        new Condition(Field.var("y"), Field.constant("color"), Field.var("c"))
+      ])
+    ];
+    const p = rete.addProduction(lhs, "prod1");
+    console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', p.rhs);
+
+    rete.addWME(new WME("B1", "on", "B2"));
+    rete.addWME(new WME("B1", "on", "B3"));
+    rete.addWME(new WME("B2", "color", "red"));
+    expect(p.items.length).to.equal(1);
+    console.log(p.items[0].toString());
+    expect(p.items[0].wme.fields[0]).to.equal("1");
+
+    rete.addWME(new WME("B2", "color", "black"));
+    expect(p.items.length).to.equal(1);
+    console.log(p.items[0].toString());
+    expect(p.items[0].wme.fields[0]).to.equal("2");
+
+    rete.addWME(new WME("B2", "color", "green"));
+    expect(p.items.length).to.equal(1);
+    console.log(p.items[0].toString());
+    expect(p.items[0].wme.fields[0]).to.equal("3");
+
+    console.log("====\n");
+  });
+
+  it("works with SUM aggregate", () => {
+    console.log("====SUM aggregate:====\n");
+
+    const rete = new Rete();
+
+    let lhs = [
+      new Condition(
+        Field.var("x"),
+        Field.constant("on"),
+        Field.var("y")
+      ),
+      new AggregateCondition("cn", new AggregateSum("c"), [
+        new Condition(Field.var("y"), Field.constant("order"), Field.var("c"))
+      ])
+    ];
+    const p = rete.addProduction(lhs, "prod1");
+    console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', p.rhs);
+
+    rete.addWME(new WME("B1", "on", "B2"));
+    rete.addWME(new WME("B1", "on", "B3"));
+    rete.addWME(new WME("B2", "order", "1200"));
+    expect(p.items.length).to.equal(1);
+    console.log(p.items[0].toString());
+    expect(p.items[0].wme.fields[0]).to.equal("1200");
+
+    rete.addWME(new WME("B2", "order", "800"));
+    expect(p.items.length).to.equal(1);
+    console.log(p.items[0].toString());
+    expect(p.items[0].wme.fields[0]).to.equal("2000");
+
+    rete.addWME(new WME("B2", "order", "500"));
+    expect(p.items.length).to.equal(1);
+    console.log(p.items[0].toString());
+    expect(p.items[0].wme.fields[0]).to.equal("2500");
+
+    console.log("====\n");
+  });
+});

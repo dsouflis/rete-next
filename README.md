@@ -56,3 +56,6 @@ Removal of productions was added, taking into account NCC nodes and NCC partner 
 
 ### Querying
 A simple querying facility was added, using a transiently added production.
+
+### Aggregates
+Support for computing aggregates has been added. This is explained in more detail [here](./README-agg.md).
