@@ -23,12 +23,23 @@ AggregateNode. The owner token is the token, excluding the part that is within i
 tokens are grouped by the owner tokens and the aggregate is computed on the set corresponding to each owner token,
 as this set changes.
 
+Let us see how this plays out with an example. We have WME `(B1 on B2)`. If we add WME `(B2 order 1200)`, the AggregateNode
+receives token `((B2 order 1200)->(B1 on B2))`, whose owner token is `((B1 on B2))`. The special alpha memory that is
+coupled with this AggregateNode receives WME `(1200 #token ((B1 on B2)))`, after which the join node that sits next to
+the branch for the AggregateNode, joining the beta memory that has token `((B1 on B2))` and that alpha memory, triggers
+the production with the token `((1200 #token ((B1 on B2)))->(B1 on B2))`.
+
+When WME `(B2 order 800)` is added, the token `((B2 order 800))->(B1 on B2))` arrives at the AggregateNode. In turn, it
+removes the old WME for the owner token from the special alpha memory, `(1200 #token ((B1 on B2)))` which cascades and
+undoes the previous production, and then adds the current one, `(2000 #token ((B1 on B2)))`. The production ends up
+being triggered by the token `((2000 #token ((B1 on B2)))->(B1 on B2))`.
+
 ## The AggregateComputation abstract class
 The base class for all implementations of aggregates is an abstract class, `AggregateComputation`. This class
 specifies the following operations that every implementation should offer:
 
-    constructor(init: T)
     abstract variables(): string[];
+    abstract init(): T;
     abstract mapper(map: StringToStringMap): T;
     abstract reducer(v1: T, v2: T): T;
     finalizer(v: T): string { return (v as any).toString(); }
@@ -43,6 +54,7 @@ Method `mapper` is given a map with values for each variable, in a token, and is
 value for this token.
 
 Method `reducer` is the commutative operation that combines two values.
-Constructor parameter `init` is the "zero" element of the `reducer`.
+
+Method `init` gives the "zero" element of the "reducer".
 
 Method `finalizer` may perform some final computation on the resulting value. Defaults to just returning it.

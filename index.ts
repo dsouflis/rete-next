@@ -1345,13 +1345,8 @@ export class NegativeCondition {
 
 export abstract class AggregateComputation<T> {
   locationInToken: LocationsOfVariablesInConditions = {};
-  init: T;
-
-  constructor(init: T) {
-    this.init = init;
-  }
-
   abstract variables(): string[];
+  abstract init(): T;
   abstract mapper(map: StringToStringMap): T;
   abstract reducer(v1: T, v2: T): T;
   finalizer(v: T): string {
@@ -1363,8 +1358,8 @@ export abstract class AggregateComputation<T> {
 }
 
 export class AggregateCount extends AggregateComputation<number> {
-  constructor() {
-    super(0);
+  init() {
+    return 0;
   }
 
   mapper(map: StringToStringMap): any {
@@ -1387,8 +1382,12 @@ export class AggregateCount extends AggregateComputation<number> {
 export class AggregateSum extends AggregateComputation<number> {
   variable: string;
 
+  init() {
+    return 0;
+  }
+
   constructor(variable: string) {
-    super(0);
+    super();
     this.variable = variable;
   }
 
@@ -1414,7 +1413,7 @@ function computeAggregateOnTokens(tokens: Token[], aggr: AggregateComputation<an
   const locationInToken = aggr.locationInToken;
   const mappedTokens = tokens.map(t => evalVariablesInToken(Object.keys(locationInToken), locationInToken,t));
   const evaledTokens = mappedTokens.map(m => aggr.mapper(m));
-  const reduced = evaledTokens.reduce((a,b) => aggr.reducer(a,b), aggr.init);
+  const reduced = evaledTokens.reduce((a,b) => aggr.reducer(a,b), aggr.init());
   const finalValue = aggr.finalizer(reduced);
   return finalValue;
 }
