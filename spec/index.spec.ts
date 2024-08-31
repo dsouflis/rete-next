@@ -1,13 +1,16 @@
 import {expect} from 'chai';
 import {
-  AggregateCondition, AggregateCount, AggregateSum,
+  AggregateCondition,
+  AggregateCount,
+  AggregateSum,
   Condition,
   ConditionArithConst,
   ConditionArithTest,
   ConditionArithVar,
   ConditionSymbolicConst,
   ConstTestNode,
-  Field, FuzzySystem,
+  Field,
+  FuzzySystem,
   FuzzyVariable,
   FuzzyWME,
   NegativeCondition,
@@ -92,10 +95,10 @@ describe('The library', () => {
 
     console.log("added production\n");
 
-    rete.addWME(new WME("B1", "on", "B2"));
+    rete.add("B1", "on", "B2");
     expect(p.items.length).to.equal(1);
 
-    rete.addWME(new WME("B1", "on", "B3"));
+    rete.add("B1", "on", "B3");
     expect(p.items.length).to.equal(2);
 
     console.log("====\n");
@@ -108,8 +111,8 @@ describe('The library', () => {
     const rete = new Rete();
 
 
-    rete.addWME(new WME("B1", "on", "B2"));
-    rete.addWME(new WME("B1", "on", "B3"));
+    rete.add("B1", "on", "B2");
+    rete.add("B1", "on", "B3");
 
     let lhs = [new Condition(
       Field.var("x"),
@@ -130,9 +133,9 @@ describe('The library', () => {
 
     const rete = new Rete();
 
-    rete.addWME(new WME("B1", "on", "B2"));
-    rete.addWME(new WME("B1", "on", "B3"));
-    rete.addWME(new WME("B1", "color", "red"));
+    rete.add("B1", "on", "B2");
+    rete.add("B1", "on", "B3");
+    rete.add("B1", "color", "red");
 
     let lhs = [new Condition(
       Field.var("x"),
@@ -164,10 +167,10 @@ describe('The library', () => {
       Field.constant("on"),
       Field.var("x"))];
     const p = rete.addProduction(lhs, "prod1");
-    rete.addWME(new WME("B1", "on", "B2"));
-    rete.addWME(new WME("B1", "on", "B3"));
-    rete.addWME(new WME("B1", "on", "B1")); // MATCH
-    rete.addWME(new WME("B1", "color", "red"));
+    rete.add("B1", "on", "B2");
+    rete.add("B1", "on", "B3");
+    rete.add("B1", "on", "B1"); // MATCH
+    rete.add("B1", "color", "red");
 
     expect(p.items.length).to.equal(1);
 
@@ -183,9 +186,9 @@ describe('The library', () => {
 
     const rete = new Rete();
 
-    rete.addWME(new WME("B1", "on", "B2"));
-    rete.addWME(new WME("B1", "on", "B3"));
-    rete.addWME(new WME("B2", "left-of", "B3"));
+    rete.add("B1", "on", "B2");
+    rete.add("B1", "on", "B3");
+    rete.add("B2", "left-of", "B3");
 
     const conds: Condition[] = [];
     conds.push(new Condition(Field.var("x"), Field.constant("on"),
@@ -215,9 +218,9 @@ describe('The library', () => {
 
     const p = rete.addProduction(conds, "prod1");
 
-    rete.addWME(new WME("B1", "on", "B2"));
-    rete.addWME(new WME("B1", "on", "B3"));
-    rete.addWME(new WME("B2", "left-of", "B3"));
+    rete.add("B1", "on", "B2");
+    rete.add("B1", "on", "B3");
+    rete.add("B2", "left-of", "B3");
 
     expect(p.items.length).to.equal(1);
 
@@ -230,10 +233,10 @@ describe('The library', () => {
 
     const rete = new Rete();
 
-    rete.addWME(new WME("B1", "on", "B2"));
-    rete.addWME(new WME("B1", "on", "B3"));
-    rete.addWME(new WME("B1", "on", "B1"));
-    rete.addWME(new WME("B1", "color", "red"));
+    rete.add("B1", "on", "B2");
+    rete.add("B1", "on", "B3");
+    rete.add("B1", "on", "B1");
+    rete.add("B1", "color", "red");
 
     const conds: Condition[] = [];
     conds.push(new Condition(Field.var("x"), Field.constant("on"), Field.var("y")));
@@ -275,7 +278,7 @@ describe('The library', () => {
 
     const p = rete.addProduction(conds, "hunting something that eats something");
 
-    rete.addWME(new WME("Elmer", "hunts", "Bugs"));
+    rete.add("Elmer", "hunts", "Bugs");
 
     let incTokens;
     incTokens= rete.getIncompleteTokensForProduction("hunting something that eats something");
@@ -284,8 +287,8 @@ describe('The library', () => {
     expect(incTokens.length).to.equal(1);
     expect(incTokens[0].toString()).to.equal("(Elmer hunts Bugs),(Bugs eats <_0>)");
 
-    rete.addWME(new WME("Bugs", "eats", "carrots"));
-    rete.addWME(new WME("carrots", "help", "eyesight"));
+    rete.add("Bugs", "eats", "carrots");
+    rete.add("carrots", "help", "eyesight");
 
     incTokens = rete.getIncompleteTokensForProduction("hunting something that eats something");
 
@@ -310,20 +313,17 @@ describe('The library', () => {
     const p = rete.addProduction(conds, "hunting something that eats something");
 
     console.log('==== adding ====');
-    const w3 = new WME("carrots", "help", "eyesight");
-    const w1 = new WME("Elmer", "hunts", "Bugs");
-    const w2 = new WME("Bugs", "eats", "carrots");
-    rete.addWME(new WME("Tom", "hunts","Jerry"));
-    rete.addWME(new WME("Jerry", "eats","cheese"));
-    rete.addWME(new WME("cheese", "help","mood"));
-    rete.addWME(w1);
-    rete.addWME(w2);
-    rete.addWME(w3);
+    rete.add("Tom", "hunts", "Jerry");
+    rete.add("Jerry", "eats", "cheese");
+    rete.add("cheese", "help", "mood");
+    rete.add("Elmer", "hunts", "Bugs");
+    const w2 = rete.add("Bugs", "eats", "carrots");
+    rete.add("carrots", "help", "eyesight");
 
     expect(p.items.length).to.equal(2);
 
     console.log('==== removing ========');
-    rete.removeWME(w2);
+    rete.removeWME(w2!!);
 
     expect(p.items.length).to.equal(1);
 
@@ -346,7 +346,7 @@ describe('The library', () => {
 
     console.log("added production\n");
 
-    rete.addWME(new WME("B1", "weighs", "1"));
+    rete.add("B1", "weighs", "1");
     expect(p.items.length).to.equal(0);
 
     const wme = new WME("B2", "weighs", "3");
@@ -379,12 +379,12 @@ describe('The library', () => {
 
     console.log("added production\n");
 
-    rete.addWME(new WME("B1", "needs", "1600"));
-    rete.addWME(new WME("B1", "consumes", "1700"));
+    rete.add("B1", "needs", "1600");
+    rete.add("B1", "consumes", "1700");
     expect(p.items.length).to.equal(0);
 
-    rete.addWME(new WME("B2", "needs", "1600"));
-    rete.addWME(new WME("B2", "consumes", "1500"));
+    rete.add("B2", "needs", "1600");
+    rete.add("B2", "consumes", "1500");
     expect(p.items.length).to.equal(1);
 
     console.log("====\n");
@@ -406,8 +406,8 @@ describe('The library', () => {
 
     console.log("added production\n");
 
-    rete.addWME(new WME("B1", "on", "B2"));
-    rete.addWME(new WME("B3", "on", "table"));
+    rete.add("B1", "on", "B2");
+    rete.add("B3", "on", "table");
     expect(p.items.length).to.equal(1);
 
     console.log("====\n");
@@ -432,11 +432,11 @@ describe('The library', () => {
 
     console.log("added production\n");
 
-    rete.addWME(new WME("B1", "food", "0.3"));
+    rete.add("B1", "food", "0.3");
     expect(p.items.length).to.equal(1);
     expect((p.items[0].wme as FuzzyWME).μ).to.closeTo(0.1, 0.1);
 
-    rete.addWME(new WME("B2", "food", "0.9"));
+    rete.add("B2", "food", "0.9");
     expect(p.items.length).to.equal(2);
     expect((p.items[1].wme as FuzzyWME).μ).to.closeTo(0.7, 0.1);
 
@@ -460,11 +460,11 @@ describe('The library', () => {
 
     console.log("added production\n");
 
-    rete.addWME(new WME("B1", "food", "0.3"));
+    rete.add("B1", "food", "0.3");
     expect(p.items.length).to.equal(1);
     expect((p.items[0].wme as FuzzyWME).μ).to.closeTo(0.5, 0.1);
 
-    rete.addWME(new WME("B2", "food", "0.9"));
+    rete.add("B2", "food", "0.9");
     expect(p.items.length).to.equal(2);
     expect((p.items[1].wme as FuzzyWME).μ).to.closeTo(0.1, 0.1);
 
@@ -511,8 +511,8 @@ describe('The library', () => {
     console.log(lhs2.map(c => c.toString()).join(' '),'⇒', p2.rhs);
     console.log(lhs3.map(c => c.toString()).join(' '),'⇒', p3.rhs);
 
-    rete.addWME(new WME("B1", "food", "0.3"));
-    rete.addWME(new WME("B1", "service", "0.9"));
+    rete.add("B1", "food", "0.3");
+    rete.add("B1", "service", "0.9");
     expect(p1.items.length).to.equal(1);
     expect(p2.items.length).to.equal(1);
     expect(p3.items.length).to.equal(1);
@@ -536,7 +536,7 @@ describe('The library', () => {
     console.log("====negative conditions when adding WMEs first:====\n");
     const rete = new Rete();
 
-    rete.addWME(new WME("B1", "on", "B2"));
+    rete.add("B1", "on", "B2");
 
     const w2 = new WME("B3", "on", "B1");
     rete.addWME(w2);
@@ -683,7 +683,7 @@ describe('The library', () => {
     expect(p.items[0].parent?.wme.fields[1]).to.equal('on');
     expect(p.items[0].parent?.wme.fields[2]).to.equal('B1');
 
-    rete.addWME(new WME('B2', 'on', 'table'));
+    rete.add('B2', 'on', 'table');
     expect(p.items.length).to.equal(2);
     expect(p.items[0].parent?.parent).to.be.null;
     expect(p.items[0].wme.fields[0]).to.equal('#dummy');
@@ -730,9 +730,9 @@ describe('The library', () => {
 
     const rete = new Rete();
 
-    rete.addWME(new WME("B1", "on", "B2"));
-    rete.addWME(new WME("B1", "on", "B3"));
-    rete.addWME(new WME("B1", "color", "red"));
+    rete.add("B1", "on", "B2");
+    rete.add("B1", "on", "B3");
+    rete.add("B1", "color", "red");
 
     let lhs = [new Condition(
       Field.var("x"),
@@ -766,19 +766,19 @@ describe('The library', () => {
     const p = rete.addProduction(lhs, "prod1");
     console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', p.rhs);
 
-    rete.addWME(new WME("B1", "on", "B2"));
-    rete.addWME(new WME("B1", "on", "B3"));
-    rete.addWME(new WME("B2", "color", "red"));
+    rete.add("B1", "on", "B2");
+    rete.add("B1", "on", "B3");
+    rete.add("B2", "color", "red");
     expect(p.items.length).to.equal(1);
     console.log(p.items[0].toString());
     expect(p.items[0].wme.fields[0]).to.equal("1");
 
-    rete.addWME(new WME("B2", "color", "black"));
+    rete.add("B2", "color", "black");
     expect(p.items.length).to.equal(1);
     console.log(p.items[0].toString());
     expect(p.items[0].wme.fields[0]).to.equal("2");
 
-    rete.addWME(new WME("B2", "color", "green"));
+    rete.add("B2", "color", "green");
     expect(p.items.length).to.equal(1);
     console.log(p.items[0].toString());
     expect(p.items[0].wme.fields[0]).to.equal("3");
@@ -804,19 +804,19 @@ describe('The library', () => {
     const p = rete.addProduction(lhs, "prod1");
     console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', p.rhs);
 
-    rete.addWME(new WME("B1", "on", "B2"));
-    rete.addWME(new WME("B1", "on", "B3"));
-    rete.addWME(new WME("B2", "order", "1200"));
+    rete.add("B1", "on", "B2");
+    rete.add("B1", "on", "B3");
+    rete.add("B2", "order", "1200");
     expect(p.items.length).to.equal(1);
     console.log(p.items[0].toString());
     expect(p.items[0].wme.fields[0]).to.equal("1200");
 
-    rete.addWME(new WME("B2", "order", "800"));
+    rete.add("B2", "order", "800");
     expect(p.items.length).to.equal(1);
     console.log(p.items[0].toString());
     expect(p.items[0].wme.fields[0]).to.equal("2000");
 
-    rete.addWME(new WME("B2", "order", "500"));
+    rete.add("B2", "order", "500");
     expect(p.items.length).to.equal(1);
     console.log(p.items[0].toString());
     expect(p.items[0].wme.fields[0]).to.equal("2500");

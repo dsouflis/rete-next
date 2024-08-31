@@ -543,7 +543,7 @@ class BetaMemory extends Identifiable{
   // updates
   join_activation(t: Token | null, w: WME, add: boolean) {
     let fullToken: Token;
-    console.log('join_activation' + (add?"[add]":"[del]") + '| ' + this + ' on ' + t + ' and '+ w);
+    if(Rete.debug) console.log('join_activation' + (add?"[add]":"[del]") + '| ' + this + ' on ' + t + ' and '+ w);
     if (add) {
       fullToken = new Token(w, t);
       this.items = [fullToken, ...this.items];
@@ -625,7 +625,7 @@ class JoinNode extends Identifiable {
 
   alpha_activation(w: WME, add: boolean) {
     assert.strict(this.amem_src);
-    console.log('α-activation| #' + this.id + ' ' + (add?"[add]":"[del]") + this + ' on ' + w);
+    if(Rete.debug) console.log('α-activation| #' + this.id + ' ' + (add?"[add]":"[del]") + this + ' on ' + w);
     if (this.bmem_src) {
       for (const t of this.bmem_src.items) {
         if(t.nccResults && t.nccResults.length) continue;
@@ -641,7 +641,7 @@ class JoinNode extends Identifiable {
 
   beta_activation(t: Token | null, add: boolean) {
     assert.strict(this.amem_src);
-    console.log('β-activation| ' + (add?"[add]":"[del]") + this + ' on ' + t);
+    if(Rete.debug) console.log('β-activation| ' + (add?"[add]":"[del]") + this + ' on ' + t);
     for (const w of this.amem_src.items) {
       if (!this.perform_join_tests(t, w)) continue;
       for (const child of this.children) {
@@ -655,7 +655,7 @@ class JoinNode extends Identifiable {
     assert.strict(this.amem_src);
 
     if (t) {
-      console.log('perform_join_tests| '+this+' on '+t+ ' and '+w);
+      if(Rete.debug) console.log('perform_join_tests| '+this+' on '+t+ ' and '+w);
       for (const test of this.tests) {
         if(!test.test(t,w)) return false;
       }
@@ -687,12 +687,12 @@ export class ProductionNode extends BetaMemory {
     if (add) {
       t = new Token(w, t);
       this.items.push(t);
-      console.log("## (PROD " + t + " ~ " + this.rhs + ") ##\n");
+      if(Rete.debug) console.log("## (PROD " + t + " ~ " + this.rhs + ") ##\n");
     } else {
       const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
       this.items = this.items.filter(t1 => !tokenIsParentAndWME(t1, t, w));
       for(let tokenToRemove of toRemove){
-        console.log("## (PROD UNDO " + tokenToRemove + " ~ " + this.rhs + ") ##\n");
+        if(Rete.debug) console.log("## (PROD UNDO " + tokenToRemove + " ~ " + this.rhs + ") ##\n");
       }
     }
   }
@@ -735,7 +735,7 @@ export class NccNode extends BetaMemory {
 
   join_activation(t: Token | null, w: WME, add: boolean) {
     let fullToken: Token;
-    console.log('join_activation' + (add?"[add]":"[del]") + '| ' + this + ' on ' + t + ' and '+ w);
+    if(Rete.debug) console.log('join_activation' + (add?"[add]":"[del]") + '| ' + this + ' on ' + t + ' and '+ w);
     if (add) {
       fullToken = new Token(w, t);
       fullToken.nccResults = [];
@@ -788,7 +788,7 @@ export class NccPartnerNode extends BetaMemory {
 
   join_activation(t: Token | null, w: WME, add: boolean) {
     let fullToken: Token;
-    console.log('join_activation' + (add?"[add]":"[del]") + '| ' + this + ' on ' + t + ' and '+ w);
+    if(Rete.debug) console.log('join_activation' + (add?"[add]":"[del]") + '| ' + this + ' on ' + t + ' and '+ w);
     if (add) {
       fullToken = new Token(w, t);
       const [owner_t, owner_w] = findOwnerTokenConstituents(t, w, this.numberOfConjuncts);
@@ -848,7 +848,7 @@ export class AggregateNode extends BetaMemory {
 
   join_activation(t: Token | null, w: WME, add: boolean) {
     let fullToken: Token;
-    console.log('join_activation' + (add?"[add]":"[del]") + '| ' + this + ' on ' + t + ' and '+ w);
+    if(Rete.debug) console.log('join_activation' + (add?"[add]":"[del]") + '| ' + this + ' on ' + t + ' and '+ w);
     if (add) {
       fullToken = new Token(w, t);
       const owner_t = findOwnerToken(t!, this.numberOfConjuncts - 1);
@@ -944,8 +944,23 @@ export class Rete {
     this.consttestnodes.push(this.alpha_top);
   }
 
+  findWME(id: any, attr: any, val: any) {
+    const found = this.working_memory.find(w => w.fields[0] === id && w.fields[1] === attr && w.fields[2] === val);
+    return found;
+  }
+
   addWME(w: WME) {
     addWME(this, w, true);
+  }
+
+  add(id: any, attr: any, val: any): WME | null {
+    const found = this.findWME(id, attr, val);
+    if(!found) {
+      const wme = new WME(id, attr, val);
+      this.addWME(wme);
+      return wme;
+    }
+    return null;
   }
 
   removeWME(w: WME) { //NB. this must be an actual WME in WM, not a clone
@@ -988,6 +1003,7 @@ export class Rete {
     return fuzzySystem.isFuzzyValue(fuzzyValue);
   }
 
+  static debug: boolean = false;
 }
 
 function wme_to_condition(w: WME): Condition {
@@ -1093,7 +1109,7 @@ function alpha_memory_activation(node: AlphaMemory, w: WME, add: boolean) {
   if (add) {
     node.items = [(w), ...node.items];
   }
-  console.log("alpha_memory_activation" + (add?"[add]":"[del]") + "| node: " + node + " | wme: " + w + "\n");
+  if(Rete.debug) console.log("alpha_memory_activation" + (add?"[add]":"[del]") + "| node: " + node + " | wme: " + w + "\n");
   for (const child of node.successors) {
     child.alpha_activation(w, add);
   }
@@ -1105,7 +1121,7 @@ function alpha_memory_activation(node: AlphaMemory, w: WME, add: boolean) {
 // pg 15
 // return whether test succeeded or not.
 function const_test_node_activation(node: TestNode, w: WME, add: boolean) {
-  console.log ("const_test_node_activation" + (add?"[add]":"[del]") + "| node: " + node + " | wme: " + w);
+  if(Rete.debug) console.log ("const_test_node_activation" + (add?"[add]":"[del]") + "| node: " + node + " | wme: " + w);
   if (!node.testWme(w)) {
     return false;
   }
@@ -1152,7 +1168,7 @@ function build_or_share_beta_memory_node(r: Rete, parent: JoinNode) {
 
   const newbeta = new BetaMemory(parent);
   r.betamemories.push(newbeta);
-  console.log(`build_or_share_beta_memory_node newBeta: %${newbeta} | parent: %${newbeta.parent}`);
+  if(Rete.debug) console.log(`build_or_share_beta_memory_node newBeta: %${newbeta} | parent: %${newbeta.parent}`);
   //newbeta->children = nullptr;
   //newbeta->items = nullptr;
   parent.children.push(newbeta);
@@ -1386,7 +1402,7 @@ export class AggregateSum extends AggregateComputation<number> {
     return 0;
   }
 
-  constructor(variable: string) {
+  constructor(variable: string) { //todo allow full expression
     super();
     this.variable = variable;
   }
@@ -1506,7 +1522,7 @@ function build_or_share_constant_test_node(
   // build a new node
   const newnode = new ConstTestNode(f, sym, null, parent);
   r.consttestnodes.push(newnode);
-  console.log(`build_or_share_constant_test_node newconsttestnode: %${newnode}`);
+  if(Rete.debug) console.log(`build_or_share_constant_test_node newconsttestnode: %${newnode}`);
   parent.children.push(newnode);
   // newnode->field_to_test = f; newnode->field_must_equal = sym;
   // newnode->output_memory = nullptr;
@@ -1532,7 +1548,7 @@ function build_or_share_intra_test_node(
   // build a new node
   const newnode = new IntraTestNode(f1, f2, null, parent);;
   r.consttestnodes.push(newnode);
-  console.log(`build_or_share_intra_test_node newconsttestnode: %${newnode}\n`);
+  if(Rete.debug) console.log(`build_or_share_intra_test_node newconsttestnode: %${newnode}\n`);
   parent.children.push(newnode);
   // newnode->field_to_test = f; newnode->field_must_equal = sym;
   // newnode->output_memory = nullptr;
@@ -1547,7 +1563,7 @@ function build_intra_arith_test_node(
   c: Condition,
 ): ArithTestNode {
   const newnode = arithTest.compileFromConditions(c, []);
-  console.log(`build_intra_arith_test_node newnode: %${newnode}\n`);
+  if(Rete.debug) console.log(`build_intra_arith_test_node newnode: %${newnode}\n`);
   newnode.parent = parent;
   parent.children.push(newnode);
   return newnode;
@@ -1588,7 +1604,7 @@ function build_or_share_fuzzy_test_node(r: Rete, parent: TestNode, fuzzyVariable
   // build a new node
   const newnode = new FuzzyTestNode(r.getFuzzySystem(fuzzyVariable), fuzzyVariable, fuzzyValue, null, parent);
   r.consttestnodes.push(newnode);
-  console.log(`build_fuzzy_test_node_if_needed fuzzytestnode: %${newnode}\n`);
+  if(Rete.debug) console.log(`build_fuzzy_test_node_if_needed fuzzytestnode: %${newnode}\n`);
   parent.children.push(newnode);
   return newnode;
 }
@@ -1657,8 +1673,8 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       j.children.push(nccPartnerNode);
       const nccNode = new NccNode(currentJoin!, nccPartnerNode);
       currentJoin!.children = [nccNode, ...currentJoin!.children]; //Always first
-      console.log(`added ncc partner node: %${nccPartnerNode}`);
-      console.log(`added ncc node: %${nccNode}`);
+      if(Rete.debug) console.log(`added ncc partner node: %${nccPartnerNode}`);
+      if(Rete.debug) console.log(`added ncc node: %${nccNode}`);
 
       //Continue underneath
       currentBeta = nccNode;
@@ -1681,9 +1697,9 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       j.children.push(aggregateNode);
       const betaMemory = new BetaMemory(currentJoin!);
       currentJoin!.children = [betaMemory, ...currentJoin!.children]; //Always first
-      console.log(`added aggregate node: %${aggregateNode}`);
+      if(Rete.debug) console.log(`added aggregate node: %${aggregateNode}`);
 
-      console.log(`added β-memory for aggregate node: %${betaMemory}`);
+      if(Rete.debug) console.log(`added β-memory for aggregate node: %${betaMemory}`);
       //Continue underneath
       currentBeta = betaMemory;
       currentJoin = new JoinNode(dummyAlphaMemory, betaMemory);
@@ -1725,7 +1741,7 @@ function add_production(r: Rete, lhs: GenericCondition[], rhs: string) {
   // build a new production node, make it a child of current node
   const prod = new ProductionNode(currentJoin!, rhs);
   r.productions.push(prod);
-  console.log(`add_production prod: %${prod} | parent: %${prod.parent}\n`);
+  if(Rete.debug) console.log(`add_production prod: %${prod} | parent: %${prod.parent}\n`);
   currentJoin.children.push(prod);
   // update new-node-with-matches-from-above (the new production node)
   update_new_node_with_matches_from_above(prod);
