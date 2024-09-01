@@ -1,7 +1,0 @@
-{
-  "extension": [
-    "js"
-  ],
-  "spec": "dist/spec/**/*.spec.js",
-  "recursive": true
-}

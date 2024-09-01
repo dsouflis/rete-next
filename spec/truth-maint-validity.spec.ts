@@ -13,7 +13,7 @@ import {
   Rete,
   TestNode, Token,
   WME,
-} from '../index.js';
+} from '../index';
 import {
   ValidityLeftClosed,
   ValidityLeftOpen,
@@ -21,7 +21,7 @@ import {
   combineValidities,
   combineSetsOfValidities,
   Validity
-} from '../validity.js';
+} from '../validity';
 import {beforeEach} from "mocha";
 
 class Justification {

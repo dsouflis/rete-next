@@ -13,8 +13,7 @@ import {
   Rete,
   Token,
   WME,
-} from '../index.js';
-import exp from "node:constants";
+} from '../index';
 
 describe('A user of the library', () => {
   it('can automatically undo productions', () => {

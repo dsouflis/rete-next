@@ -1,0 +1,32 @@
+Productions0 {
+Productions = Production+
+
+Production = "(" Condition+ "->" prodName ")"
+
+Condition = MatchCondition | NotCondition
+
+MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")" ("from"  "{" Condition+ "}")?
+
+MatchSpecifier = varSpecifier | constSpecifier | AggrSpecifier | Expr
+
+Expr = "(" MathExpr op MathExpr ")"
+
+MathExpr = MatchSpecifier
+
+op = "+" | "-" | "*" | "/"
+
+constSpecifier = (alnum | "-")+ | comp
+
+comp = "=" | "<>" | ">" | ">=" | "<" | "<="
+
+varSpecifier = "<" alnum+ ">"
+
+AggrSpecifier =  "#" (alnum)+ Expr
+
+NotCondition = "-" "{" Condition+ "}"
+
+prodName = "\"" (alnum|" ")+ "\""
+
+}
+
+# ( (<x> on <y>) (<y> > (3 + <x>)) -{ (<y> left-of <z>)} (<w> = sum(<w> * 2)) from {(<y> on <w>)} -> "prod 1")
