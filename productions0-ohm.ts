@@ -21,7 +21,7 @@ comp = "=" | "<>" | ">" | ">=" | "<" | "<="
 
 varSpecifier = "<" alnum+ ">"
 
-AggrSpecifier =  "#" (alnum)+ Expr
+AggrSpecifier =  "#" (alnum)+ Expr?
 
 NotCondition = "-" "{" Condition+ "}"
 

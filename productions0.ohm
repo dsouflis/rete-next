@@ -21,7 +21,7 @@ comp = "=" | "<>" | ">" | ">=" | "<" | "<="
 
 varSpecifier = "<" alnum+ ">"
 
-AggrSpecifier =  "#" (alnum)+ Expr
+AggrSpecifier =  "#" (alnum)+ Expr?
 
 NotCondition = "-" "{" Condition+ "}"
 
@@ -29,4 +29,3 @@ prodName = "\"" (alnum|" ")+ "\""
 
 }
 
-# ( (<x> on <y>) (<y> > (3 + <x>)) -{ (<y> left-of <z>)} (<w> = sum(<w> * 2)) from {(<y> on <w>)} -> "prod 1")
