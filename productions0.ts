@@ -35,7 +35,7 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
       } else if(condsSpec instanceof ConditionArithTest) {
         strict.strict(lhs.length > 0, "Cannot start a condition list with a constraint");
         strict.strict(lhs[lhs.length - 1] instanceof Condition, "Cannot start a condition list with a constraint");
-        //todo find if test is internal or external
+        //todo find if test is internal or external using getLocationsOfVariablesInConditions
         (lhs[lhs.length - 1] as Condition).intraArithTests.push(condsSpec);
       }
     }
@@ -55,12 +55,20 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
 
   //MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")" ("from"  "{" Condition+ "}")?
   MatchCondition(lParen: Node, matchSpec1: Node, matchSpec2: Node, matchSpec3: Node, rParen: Node, optFrom: Node, optLBrace: Node, optConds: Node, optRBrace: Node) {
-    const match1 = matchSpec1.toSpecs();
+    let match1 = matchSpec1.toSpecs();
     const match2 = matchSpec2.toSpecs();
-    const match3 = matchSpec3.toSpecs();
+    let match3 = matchSpec3.toSpecs();
     const conds = optConds.toSpecs();
     if(match2 instanceof Field && (match2 as Field).type === FieldType.Const && isCompOp((match2 as Field).v)) {
-      //todo create ConditionArithTest to be appended to previous Condition
+      if (match2.v !== '=' && (!(match3 instanceof Field) || (match2 as Field).type !== FieldType.Const || !(match3 as Field).v.startsWith('#') )) {
+        if (match1 instanceof Field) {
+          match1 = fieldToArith(match1);
+        }
+        if (match3 instanceof Field) {
+          match3 = fieldToArith(match3);
+        }
+        return new ConditionArithTest(match1, (match2 as Field).v as CompOp, match3);
+      }
     }
     return new Condition(match1, match2, match3); //todo or create AggregateCondition
   },
@@ -102,13 +110,7 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
   MathExpr(matchSpecNode: Node) {
     const matchSpec = matchSpecNode.toSpecs();
     if(matchSpec instanceof Field) {
-      if(matchSpec.type === FieldType.Const) {
-        const number = parseFloat(matchSpec.v);
-        strict.strict(!Number.isNaN(number), `Not a number ${matchSpec.v}`);
-        return new ConditionArithConst(number)
-      } else {
-        return new ConditionArithVar(matchSpec.v);
-      }
+      return fieldToArith(matchSpec);
     }
     return matchSpec;
   },
@@ -177,5 +179,16 @@ export function parseRete(input: string): ParseError | ParseSuccess {
       specs,
     });
   }
+}
+
+function fieldToArith(matchSpec: Field) {
+  if(matchSpec.type === FieldType.Const) {
+    const number = parseFloat(matchSpec.v);
+    strict.strict(!Number.isNaN(number), `Not a number ${matchSpec.v}`);
+    return new ConditionArithConst(number)
+  } else {
+    return new ConditionArithVar(matchSpec.v);
+  }
+
 }
 
