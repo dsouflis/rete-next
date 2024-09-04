@@ -30,7 +30,7 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     const condsSpecs = condsNode.toSpecs();
     const lhs: GenericCondition[] = [];
     for (const condsSpec of condsSpecs) {
-      if(condsSpec instanceof Condition || condsSpecs instanceof NegativeCondition) {
+      if(condsSpec instanceof Condition || condsSpec instanceof NegativeCondition) {
         lhs.push(condsSpec as Condition);
       } else if(condsSpec instanceof ConditionArithTest) {
         strict.strict(lhs.length > 0, "Cannot start a condition list with a constraint");
@@ -111,6 +111,12 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
       }
     }
     return matchSpec;
+  },
+
+  //NotCondition = "-" "{" Condition+ "}"
+  NotCondition(notNode: Node, lBrace: Node, condsNode: Node, rBrace: Node) {
+    const conds = condsNode.toSpecs();
+    return new NegativeCondition(conds);
   },
 
   //prodName = "\"" (alnum|" ")+ "\""
