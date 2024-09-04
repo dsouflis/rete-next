@@ -11,8 +11,8 @@ describe('The Productions0 parser', () => {
     expect('specs' in reteParse && reteParse.specs).to.exist;
   });
 
-  it('can parse productions and add them to a Rete', () => {
-    console.log('====can parse productions and add them to a Rete===');
+  it('can parse productions with simple conditions and add them to a Rete', () => {
+    console.log('====can parse productions with simple conditions and add them to a Rete===');
     const input = `( (<x> on <y>) -> "prod1")`;
     const reteParse = parseRete(input);
     console.log(reteParse);
@@ -37,6 +37,36 @@ describe('The Productions0 parser', () => {
 
     rete.add("B1", "on", "B3");
     expect(p!!.items.length).to.equal(2);
+
+    console.log("====\n");
+  });
+
+  it('can parse productions with simple conditions and constraints, and add them to a Rete', () => {
+    console.log('====can parse productions with simple conditions and constraints, and add them to a Rete===');
+    const input = `( (<x> weight <y>) (<y> < 50) -> "prod1")`;
+    const reteParse = parseRete(input);
+    console.log(reteParse);
+    expect('specs' in reteParse && reteParse.specs).to.exist;
+
+    console.log("adding production\n");
+    const rete = new Rete();
+    const parsed = reteParse as ParseSuccess;
+
+    for (const {lhs, rhs} of parsed.specs) {
+      rete.addProduction(lhs, rhs);
+    }
+
+    const p = rete.productions.find(p => p.rhs === "prod1");
+
+    expect(p).to.exist;
+
+    console.log("added production\n");
+
+    rete.add("B1", "weight", "40");
+    expect(p!!.items.length).to.equal(1);
+
+    rete.add("B2", "weight", "50");
+    expect(p!!.items.length).to.equal(1);
 
     console.log("====\n");
   });
