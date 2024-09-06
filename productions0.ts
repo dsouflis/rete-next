@@ -53,27 +53,29 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     return cond;
   },
 
-  //MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")" ("from"  "{" Condition+ "}")?
-  MatchCondition(lParen: Node, matchSpec1: Node, matchSpec2: Node, matchSpec3: Node, rParen: Node, optFrom: Node, optLBrace: Node, optConds: Node, optRBrace: Node) {
+  //MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")"
+  MatchCondition(lParen: Node, matchSpec1: Node, matchSpec2: Node, matchSpec3: Node, rParen: Node) {
     let match1 = matchSpec1.toSpecs();
     const match2 = matchSpec2.toSpecs();
     let match3 = matchSpec3.toSpecs();
-    const conds = optConds.toSpecs();
     if(match2 instanceof Field && (match2 as Field).type === FieldType.Const && isCompOp((match2 as Field).v)) {
-      if (match2.v !== '=' && (!(match3 instanceof Field) || (match2 as Field).type !== FieldType.Const || !(match3 as Field).v.startsWith('#') )) {
-        if (match1 instanceof Field) {
-          match1 = fieldToArith(match1);
-        }
-        if (match3 instanceof Field) {
-          match3 = fieldToArith(match3);
-        }
-        return new ConditionArithTest(match1, (match2 as Field).v as CompOp, match3);
+      if (match1 instanceof Field) {
+        match1 = fieldToArith(match1);
       }
+      if (match3 instanceof Field) {
+        match3 = fieldToArith(match3);
+      }
+      return new ConditionArithTest(match1, (match2 as Field).v as CompOp, match3);
     }
-    return new Condition(match1, match2, match3); //todo or create AggregateCondition
+    return new Condition(match1, match2, match3);
   },
 
-  //MatchSpecifier = varSpecifier | constSpecifier | AggrSpecifier | Expr
+  //AggregateCondition = "(" varSpecifier "<-" AggrSpecifier ")" "from"  "{" Condition+ "}"
+  AggregateCondition(lParen: Node, vasSpec: Node, assgn: Node, aggrSpec: Node, rParen: Node, from: Node, rBrace: Node, condsNode: Node, lBrace: Node) {
+
+  },
+
+  //MatchSpecifier = varSpecifier | constSpecifier | Expr
   MatchSpecifier(alt: Node) {
     return alt.toSpecs();
   },

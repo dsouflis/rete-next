@@ -3,11 +3,14 @@ Productions = Production+
 
 Production = "(" Condition+ "->" prodName ")"
 
-Condition = MatchCondition | NotCondition
+Condition = MatchCondition | NotCondition | AggregateCondition
 
-MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")" ("from"  "{" Condition+ "}")?
+MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")"
 
-MatchSpecifier = varSpecifier | constSpecifier | AggrSpecifier | Expr
+AggregateCondition = "(" varSpecifier "<-" AggrSpecifier ")" "from"  "{" Condition+ "}"
+
+
+MatchSpecifier = varSpecifier | constSpecifier | Expr
 
 Expr = "(" MathExpr op MathExpr ")"
 
@@ -27,4 +30,5 @@ NotCondition = "-" "{" Condition+ "}"
 
 prodName = "\\"" (alnum|" ")+ "\\""
 
-}`;
+}
+`;

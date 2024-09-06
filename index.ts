@@ -1450,7 +1450,7 @@ export class AggregateCondition extends Condition {
   aggregateComputation: AggregateComputation<any>;
 
   constructor(variable: string, aggregateComputation: AggregateComputation<any>, innerConditions: GenericCondition[]) {
-    super(Field.var(variable), Field.constant('='), Field.constant(aggregateComputation.toString()));
+    super(Field.var(variable), Field.constant('<-'), Field.constant(aggregateComputation.toString()));
     this.innerConditions = innerConditions;
     this.aggregateComputation = aggregateComputation;
   }
@@ -1732,9 +1732,6 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       am = build_or_share_alpha_memory_dataflow(r, cond);
       if (i > 0 || j) { // get the current beta memory node M[i]
         currentBeta = build_or_share_beta_memory_node(r, currentJoin!);
-        // if(negProd !== null) {
-        //   currentBeta.setNegativeProduction(negProd);
-        // }
       }
       currentJoin = build_or_share_join_node(r, currentBeta, am, tests);
     }
