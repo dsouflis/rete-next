@@ -5,7 +5,7 @@ import {
   Context,
   combineValidities,
   contextCommensurate,
-} from '../validity.js';
+} from '../validity';
 
 describe('contextCommensurate', () => {
   it('returns false for contexts on different branches', () => {

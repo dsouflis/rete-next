@@ -1,0 +1,9 @@
+{
+  "require": [
+    "spec/config/init.cjs"
+  ],
+  "extension": ["ts"],
+  "spec": [
+    "spec/**/*.spec.ts"
+  ]
+}

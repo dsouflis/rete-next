@@ -4,11 +4,12 @@
   "description": "Implementation of RETE in Doorenbos' thesis, based on https://github.com/bollu/rete",
   "type": "module",
   "main": "dist/app.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "compile": "tsc",
     "start": "tsc && node dist/index.js",
     "lint": "eslint .",
-    "test": "tsc && mocha"
+    "test": "mocha --config spec/config/.mocharc.jsonc"
   },
   "keywords": [
     "rete",
@@ -21,10 +22,14 @@
     "@types/node": "^20.14.10",
     "globals": "^15.8.0",
     "typescript": "^5.5.3",
-    "mocha": "^10.4.0",
-    "chai": "^5.1.1",
-    "@types/chai": "^4.3.16",
-    "@types/mocha": "^10.0.7",
-    "ts-node": "^10.9.2"
+    "mocha": "^7.1.1",
+    "chai": "^4.2.0",
+    "@types/chai": "^4.2.11",
+    "@types/mocha": "^7.0.2",
+    "ts-node": "^8.9.0",
+    "@ohm-js/cli": "^1.0.1"
+  },
+  "dependencies": {
+    "ohm-js": "^17.1.0"
   }
 }

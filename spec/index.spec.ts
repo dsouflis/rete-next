@@ -17,7 +17,7 @@ import {
   Rete,
   TestNode,
   WME,
-} from '../index.js';
+} from '../index';
 
 function sigmoid(a: number, c: number, val: number) {
   return 1 / (1 + Math.exp(-a * (val - c)));

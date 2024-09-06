@@ -13,7 +13,7 @@ import {
   Rete,
   TestNode,
   WME,
-} from '../index.js';
+} from '../index';
 
 describe('The library', () => {
   it('can be fed knowledge graphs from ChatGPT', () => {

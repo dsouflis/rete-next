@@ -10,7 +10,7 @@ is defined using programming artifacts. This does not preclude some such impleme
 
 Let's take one of the productions in the corresponding tests as an example:
 
-`(<x> on <y>),(<cn> = SUM(<c>)) from {(<y> order <c>)} ⇒  prod1`
+`(<x> on <y>),(<cn> <- #SUM(<c>)) from {(<y> order <c>)} ⇒  prod1`
 
 The second condition is an aggregate condition that will cause variable `cn` to hold the sum of all values of `c`
 from the condition set inside braces.

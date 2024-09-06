@@ -1,4 +1,4 @@
-import {strict as assert} from 'assert';
+import {strict} from 'assert';
 
 // Production Matching for Large Learning Systems
 // http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf
@@ -278,8 +278,16 @@ export class FuzzyTestNode extends TestNode {
   }
 }
 
-type ArithOp = '+' | '-' | '*' | '/';
-type CompOp = '=' | '<>' | '<' | '<=' | '>' | '>=';
+export type ArithOp = '+' | '-' | '*' | '/';
+export type CompOp = '=' | '<>' | '<' | '<=' | '>' | '>=';
+
+export function isArithOp(op: string) {
+  return ['+', '-', '*', '/'].includes(op);
+}
+
+export function isCompOp(op: string) {
+  return ['=', '<>', '<', '<=', '>', '>='].includes(op);
+}
 
 export interface ArithExpression {
   eval(token: Token | null, w: WME): number;
@@ -304,7 +312,7 @@ export class VarExpression implements ArithExpression, ArithSymbolicExpression {
   }
 
   evalAsString(t: Token | null, w: WME) {
-    assert.strict(this.ix_in_token === null || t !== null)
+    strict.strict(this.ix_in_token === null || t !== null, 'Cannot evaluate variable')
     const w2 = this.ix_in_token === null ? w : t!.index(this.ix_in_token);
     const s = w2.fields[this.field];
     return s;
@@ -342,7 +350,7 @@ export class ConstSymbolicExpression implements ArithExpression, ArithSymbolicEx
   }
 
   eval(t: Token | null, w: WME): number {
-    assert.strict("Wrong use of const symbolic expression in arithmetic expression" && false);
+    strict.strict( false, "Wrong use of const symbolic expression in arithmetic expression");
     return 0;
   }
 
@@ -475,19 +483,19 @@ export class Token {
     if (!((ix >= 0) && (ix <= this.token_chain_ix))) {
       console.error("ix: " + ix + " token_chain_ix: " + this.token_chain_ix + " wme: " + this.wme + "\n");
     }
-    assert.strict(ix >= 0);
-    assert.strict(ix <= this.token_chain_ix);
+    strict.strict(ix >= 0, "Index cannot be smaller than 0");
+    strict.strict(ix <= this.token_chain_ix, "Index cannot be bigger than the token_chain_ix");
     if (ix == this.token_chain_ix) {
       return this.wme;
     }
-    assert.strict(this.parent !== null);
+    strict.strict(this.parent !== null, "Parent is null");
     return this.parent!.index(ix);
   }
 
   toString() {
     let s = "(";
     for(let p: Token | null = this; p !== null; p = p.parent) {
-      assert.strict(p.wme);
+      strict.strict(p.wme, "WME must exist");
       s += (p.wme);
       if (p.parent !== null) { s += "->";}
     }
@@ -552,7 +560,7 @@ class BetaMemory extends Identifiable{
       }
     } else {
       const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
-      assert.strict(toRemove.length === 1);
+      strict.strict(toRemove.length === 1); //todo
       fullToken = toRemove[0];
       for (let child of this.children) {
         child.beta_activation(fullToken, add);
@@ -624,7 +632,7 @@ class JoinNode extends Identifiable {
   }
 
   alpha_activation(w: WME, add: boolean) {
-    assert.strict(this.amem_src);
+    strict.strict(this.amem_src, "α memory must exist");
     if(Rete.debug) console.log('α-activation| #' + this.id + ' ' + (add?"[add]":"[del]") + this + ' on ' + w);
     if (this.bmem_src) {
       for (const t of this.bmem_src.items) {
@@ -640,7 +648,7 @@ class JoinNode extends Identifiable {
   }
 
   beta_activation(t: Token | null, add: boolean) {
-    assert.strict(this.amem_src);
+    strict.strict(this.amem_src, "α memory must exist");
     if(Rete.debug) console.log('β-activation| ' + (add?"[add]":"[del]") + this + ' on ' + t);
     for (const w of this.amem_src.items) {
       if (!this.perform_join_tests(t, w)) continue;
@@ -652,7 +660,7 @@ class JoinNode extends Identifiable {
 
   perform_join_tests(t: Token | null, w: WME) {
     if (!this.bmem_src) return true;
-    assert.strict(this.amem_src);
+    strict.strict(this.amem_src, "α memory must exist");
 
     if (t) {
       if(Rete.debug) console.log('perform_join_tests| '+this+' on '+t+ ' and '+w);
@@ -757,7 +765,7 @@ export class NccNode extends BetaMemory {
       }
     } else {
       const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
-      assert.strict(toRemove.length === 1);
+      strict.strict(toRemove.length === 1); //todo
       fullToken = toRemove[0];
       for (let child of this.children) {
         child.beta_activation(fullToken, add);
@@ -993,7 +1001,7 @@ export class Rete {
 
   getFuzzySystem(fsn: string) {
     const found = this.fuzzySystems.find(fs => fs.getName() === fsn);
-    assert.strict(found);
+    strict.strict(found, `Fuzzy variable ${fsn} was not found on any Fuzzy system`);
     return found;
   }
 
@@ -1049,8 +1057,8 @@ function get_incomplete_tokens_for_production(r: Rete, rhs: string): Condition[]
       for (const test of tests) {
         if (test instanceof TestAtJoinNode) {
           const condition = conditionsArray[test.ix_in_token_of_arg2];
-          assert.strict(condition.attrs[test.field_of_arg2]?.type === FieldType.Const)
-          assert.strict(fields[test.field_of_arg1] === null);
+          strict.strict(condition.attrs[test.field_of_arg2]?.type === FieldType.Const, `Condition field ${test.field_of_arg2} must be a constant`);
+          strict.strict(fields[test.field_of_arg1] === null, `Field ${test.field_of_arg1} already has a value`);
           fields[test.field_of_arg1] = condition.attrs[test.field_of_arg2];
         }
       }
@@ -1063,7 +1071,7 @@ function get_incomplete_tokens_for_production(r: Rete, rhs: string): Condition[]
             if(fieldToTest === null) {
               fields[testNode.field_to_test] = Field.constant(testNode.field_must_equal);
             } else if(fieldToTest.type === FieldType.Const) {
-              assert.strict(fieldToTest.v === testNode.field_must_equal);
+              strict.strict(fieldToTest.v === testNode.field_must_equal, "Fields should have been equal");
             } else if(fieldToTest.type === FieldType.Var) {
               const indexesOfVar = fields
                 .map((f,i) => [f,i] as [Field,number])
@@ -1075,7 +1083,7 @@ function get_incomplete_tokens_for_production(r: Rete, rhs: string): Condition[]
             }
           } else if(testNode instanceof IntraTestNode) {
             if(fields[testNode.first_field]?.type === FieldType.Const && fields[testNode.second_field]?.type === FieldType.Const) {
-              assert.strict(fields[testNode.first_field]?.v === fields[testNode.second_field]?.v)
+              strict.strict(fields[testNode.first_field]?.v === fields[testNode.second_field]?.v, 'Variables should have been the same variable')
             } else if(fields[testNode.first_field]?.type === FieldType.Var && fields[testNode.second_field]?.type === FieldType.Var) {
               fields[testNode.second_field] = fields[testNode.first_field];
             } else if(fields[testNode.first_field]?.type === FieldType.Var) {
@@ -1143,7 +1151,7 @@ function addWME(r: Rete, w: WME, add: boolean) {
   if(!add) {
     const lengthBefore = r.working_memory.length;
     r.working_memory = r.working_memory.filter(w1 => w1 !== w);
-    assert.strict(r.working_memory.length < lengthBefore);
+    strict.strict(r.working_memory.length < lengthBefore, 'No WME was removed');
   }
 }
 
@@ -1185,7 +1193,7 @@ function build_or_share_join_node(
 ) {
   // bmem can be nullptr in top node case.
   // assert(bmem != nullptr);
-  assert.strict(amem !== null);
+  strict.strict(amem !== null, "α memory must exist");
 
   const newjoin = new JoinNode(amem, bmem);
   r.joinnodes.push(newjoin);
@@ -1196,7 +1204,7 @@ function build_or_share_join_node(
 }
 
 // inferred from discussion
-enum FieldType {
+export enum FieldType {
   Const = 0,
   Var = 1
 }
@@ -1229,6 +1237,7 @@ export class Field {
 
 export interface ConditionArithExpression {
   compileFromConditions(c: Condition, earlierConds: GenericCondition[]): ArithExpression;
+  variables(): string[];
 }
 
 export class ConditionArithVar implements ConditionArithExpression {
@@ -1244,9 +1253,16 @@ export class ConditionArithVar implements ConditionArithExpression {
       if(c.attrs[f].v === this.v) return new VarExpression(f);
     }
     const [i, f2] = lookup_earlier_cond_with_field(earlierConds, this.v);
-    if (i == -1)  { assert.strict(f2 == -1); }
-    assert.strict(i != -1); assert.strict(f2 != -1);
+    if (i == -1)  {
+      strict.strict(f2 == -1, 'Field position found but variable was not found');
+    }
+    strict.strict(i != -1, 'Variable not found');
+    strict.strict(f2 != -1, 'Variable not found');
     return new VarExpression(f2, i);
+  }
+
+  variables(): string[] {
+    return [this.v];
   }
 
   toString() {
@@ -1265,6 +1281,10 @@ export class ConditionArithConst implements ConditionArithExpression {
     return new ConstExpression(this.v);
   }
 
+  variables(): string[] {
+    return [];
+  }
+
   toString() {
     return this.v;
   }
@@ -1279,6 +1299,10 @@ export class ConditionSymbolicConst implements ConditionArithExpression {
 
   compileFromConditions(c: Condition, earlierConds: Condition[]): ArithExpression {
     return new ConstSymbolicExpression(this.v);
+  }
+
+  variables(): string[] {
+    return [];
   }
 
   toString() {
@@ -1303,6 +1327,12 @@ export class ConditionArithBinaryOp implements ConditionArithExpression {
     return new BinaryOpExpression(leftArithExpression, this.op, rightArithExpression);
   }
 
+  variables(): string[] {
+    const leftVariables = this.leftOperand.variables();
+    const rightVariables = this.rightOperand.variables();
+    return [...leftVariables, ...rightVariables];
+  }
+
   toString() {
     return "(" + this.leftOperand + " " + this.op + " " + this.rightOperand + ")";
   }
@@ -1323,6 +1353,12 @@ export class ConditionArithTest {
     const leftArithExpression = this.leftOperand.compileFromConditions(c, earlierConds);
     const rightArithExpression = this.rightOperand.compileFromConditions(c, earlierConds);
     return new ArithTestNode(null, leftArithExpression, this.comp, rightArithExpression);
+  }
+
+  variables(): string[] {
+    const leftVariables = this.leftOperand.variables();
+    const rightVariables = this.rightOperand.variables();
+    return [...leftVariables, ...rightVariables];
   }
 
   toString() {
@@ -1368,9 +1404,6 @@ export abstract class AggregateComputation<T> {
   finalizer(v: T): string {
     return (v as any).toString();
   }
-  toString() {
-    return "AGGREGATE()";
-  }
 }
 
 export class AggregateCount extends AggregateComputation<number> {
@@ -1391,7 +1424,7 @@ export class AggregateCount extends AggregateComputation<number> {
   }
 
   toString(): string {
-    return 'SUM()';
+    return '#COUNT';
   }
 }
 
@@ -1420,7 +1453,7 @@ export class AggregateSum extends AggregateComputation<number> {
   }
 
   toString(): string {
-    return 'SUM(<' + this.variable + '>)';
+    return '#SUM(<' + this.variable + '>)';
   }
 }
 
@@ -1439,7 +1472,7 @@ export class AggregateCondition extends Condition {
   aggregateComputation: AggregateComputation<any>;
 
   constructor(variable: string, aggregateComputation: AggregateComputation<any>, innerConditions: GenericCondition[]) {
-    super(Field.var(variable), Field.constant('='), Field.constant(aggregateComputation.toString()));
+    super(Field.var(variable), Field.constant('<-'), Field.constant(aggregateComputation.toString()));
     this.innerConditions = innerConditions;
     this.aggregateComputation = aggregateComputation;
   }
@@ -1490,8 +1523,14 @@ function get_join_tests_from_condition(
     const v = c.attrs[f].v;
     const [i, f2] = lookup_earlier_cond_with_field(earlierConds, v);
     // nothing found
-    if (i == -1)  { assert.strict(f2 == -1); continue; }
-    assert.strict(i != -1); assert.strict(f2 != -1);
+    if (i == -1)  {
+      strict.strict(f2 == -1, 'Field position found but variable was not found');
+      continue;
+    }
+    if (i == -1)  {
+    }
+    strict.strict(i != -1, 'Variable not found');
+    strict.strict(f2 != -1, 'Variable not found');
     const test = new TestAtJoinNode(f, f2, i);
     result.push(test);
   }
@@ -1510,7 +1549,7 @@ function build_or_share_constant_test_node(
   f: WMEFieldType,
   sym: string
 ) {
-  assert.strict(parent != null);
+  strict.strict(parent != null, 'Parent cannot be null');
   // look for pre-existing node
   for (const child of parent.children) {
     if(child instanceof ConstTestNode) {
@@ -1536,7 +1575,7 @@ function build_or_share_intra_test_node(
   f1: WMEFieldType,
   f2: WMEFieldType
 ) {
-  assert.strict(parent != null);
+  strict.strict(parent != null, 'Parent cannot be null');
   // look for pre-existing node
   for (const child of parent.children) {
     if(child instanceof IntraTestNode) {
@@ -1592,7 +1631,7 @@ export interface FuzzyVariable {
 }
 
 function build_or_share_fuzzy_test_node(r: Rete, parent: TestNode, fuzzyVariable: string, fuzzyValue: string) {
-  assert.strict(parent != null);
+  strict.strict(parent != null, 'Parent cannot be null');
   // look for pre-existing node
   for (const child of parent.children) {
     if (child instanceof FuzzyTestNode) {
@@ -1637,7 +1676,7 @@ function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) {
   if (currentNode.output_memory != null) {
     return currentNode.output_memory;
   }
-  assert.strict(currentNode.output_memory == null);
+  strict.strict(currentNode.output_memory == null, 'Output memory cannot be null');
   currentNode.output_memory = new AlphaMemory(currentNode);
   r.alphamemories.push(currentNode.output_memory);
   // initialize AM with any current WMEs
@@ -1652,7 +1691,7 @@ function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) {
 
 // page 36: hash version
 function build_or_share_alpha_memory_hashed(r: Rete, c: Condition) {
-  assert.strict(false && "unimplemented");
+  strict.strict(false, "unimplemented");
 }
 
 
@@ -1666,7 +1705,7 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
   for (let i = 0; i < lhs.length; ++i) {
     let cond = lhs[i];
     if(cond instanceof NegativeCondition) {
-      assert.strict(currentJoin);
+      strict.strict(currentJoin, 'Current join should exist');
       const branchConds = [...earlierConds];
       const j: JoinNode = build_networks_for_conditions(cond.negativeConditions, r, branchConds, currentJoin);
       const nccPartnerNode = new NccPartnerNode(j, cond.negativeConditions.length);
@@ -1715,9 +1754,6 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       am = build_or_share_alpha_memory_dataflow(r, cond);
       if (i > 0 || j) { // get the current beta memory node M[i]
         currentBeta = build_or_share_beta_memory_node(r, currentJoin!);
-        // if(negProd !== null) {
-        //   currentBeta.setNegativeProduction(negProd);
-        // }
       }
       currentJoin = build_or_share_join_node(r, currentBeta, am, tests);
     }
@@ -1754,11 +1790,11 @@ export function getLocationsOfVariablesInConditions(variables: string[], conds: 
   const locationInToken: LocationsOfVariablesInConditions = {};
   for (const v of variables) {
     const [i, f2] = lookup_earlier_cond_with_field(conds, v);
-    if (i == -1) {
-      assert.strict(f2 == -1);
+    if (i == -1)  {
+      strict.strict(f2 == -1, 'Field position found but variable was not found');
     }
-    assert.strict(i != -1);
-    assert.strict(f2 != -1);
+    strict.strict(i != -1, 'Variable not found');
+    strict.strict(f2 != -1, 'Variable not found');
     locationInToken[v] = [i, f2];
   }
   return locationInToken;
