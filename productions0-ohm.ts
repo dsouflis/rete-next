@@ -24,7 +24,11 @@ comp = "=" | "<>" | ">" | ">=" | "<" | "<="
 
 varSpecifier = "<" alnum+ ">"
 
-AggrSpecifier =  "#" (alnum)+ Expr?
+AggrSpecifier =  "#" (alnum)+ "(" MatchOrOp? ")"
+
+MatchOrOp =  OpExpr | varSpecifier | constSpecifier
+
+OpExpr = MathExpr op MathExpr
 
 NotCondition = "-" "{" Condition+ "}"
 

@@ -1237,6 +1237,7 @@ export class Field {
 
 export interface ConditionArithExpression {
   compileFromConditions(c: Condition, earlierConds: GenericCondition[]): ArithExpression;
+  variables(): string[];
 }
 
 export class ConditionArithVar implements ConditionArithExpression {
@@ -1260,6 +1261,10 @@ export class ConditionArithVar implements ConditionArithExpression {
     return new VarExpression(f2, i);
   }
 
+  variables(): string[] {
+    return [this.v];
+  }
+
   toString() {
     return "<" + this.v + ">";
   }
@@ -1276,6 +1281,10 @@ export class ConditionArithConst implements ConditionArithExpression {
     return new ConstExpression(this.v);
   }
 
+  variables(): string[] {
+    return [];
+  }
+
   toString() {
     return this.v;
   }
@@ -1290,6 +1299,10 @@ export class ConditionSymbolicConst implements ConditionArithExpression {
 
   compileFromConditions(c: Condition, earlierConds: Condition[]): ArithExpression {
     return new ConstSymbolicExpression(this.v);
+  }
+
+  variables(): string[] {
+    return [];
   }
 
   toString() {
@@ -1314,6 +1327,12 @@ export class ConditionArithBinaryOp implements ConditionArithExpression {
     return new BinaryOpExpression(leftArithExpression, this.op, rightArithExpression);
   }
 
+  variables(): string[] {
+    const leftVariables = this.leftOperand.variables();
+    const rightVariables = this.rightOperand.variables();
+    return [...leftVariables, ...rightVariables];
+  }
+
   toString() {
     return "(" + this.leftOperand + " " + this.op + " " + this.rightOperand + ")";
   }
@@ -1334,6 +1353,12 @@ export class ConditionArithTest {
     const leftArithExpression = this.leftOperand.compileFromConditions(c, earlierConds);
     const rightArithExpression = this.rightOperand.compileFromConditions(c, earlierConds);
     return new ArithTestNode(null, leftArithExpression, this.comp, rightArithExpression);
+  }
+
+  variables(): string[] {
+    const leftVariables = this.leftOperand.variables();
+    const rightVariables = this.rightOperand.variables();
+    return [...leftVariables, ...rightVariables];
   }
 
   toString() {
@@ -1378,9 +1403,6 @@ export abstract class AggregateComputation<T> {
   abstract reducer(v1: T, v2: T): T;
   finalizer(v: T): string {
     return (v as any).toString();
-  }
-  toString() {
-    return "AGGREGATE()";
   }
 }
 

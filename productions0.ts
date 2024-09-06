@@ -1,5 +1,7 @@
 import {ActionDict, grammars, Node} from "ohm-js";
 import {
+  AggregateComputation,
+  AggregateCondition, AggregateCount, AggregateSum,
   ArithOp,
   CompOp,
   Condition, ConditionArithBinaryOp,
@@ -7,16 +9,47 @@ import {
   ConditionArithTest, ConditionArithVar,
   Field,
   FieldType,
-  GenericCondition,
+  GenericCondition, getLocationsOfVariablesInConditions,
   isCompOp,
   NegativeCondition,
 } from "./index";
 import {production0GrammarContents} from "./productions0-ohm";
-import {strict} from "node:assert";
-
+import {strict} from "assert";
 
 const g = grammars(production0GrammarContents).Productions0;
 const semantics = g.createSemantics();
+
+function createAggregateComputation(name: string, expr: ConditionArithVar | null): AggregateComputation<any> | null { //todo handle general expressions
+  switch(name.toUpperCase()) {
+    case '#SUM': {
+      strict.strict(expr, '#SUM needs an expression');
+      return new AggregateSum(expr.v);
+    }
+    case '#COUNT': return new AggregateCount();
+  }
+  return null;
+}
+
+function condsSpecsToConditions(condsSpecs) {
+  const lhs: GenericCondition[] = [];
+  for (const condsSpec of condsSpecs) {
+    if (condsSpec instanceof Condition || condsSpec instanceof NegativeCondition) {
+      lhs.push(condsSpec as Condition);
+    } else if (condsSpec instanceof ConditionArithTest) {
+      strict.strict(lhs.length > 0, "Cannot start a condition list with a constraint");
+      strict.strict(lhs[lhs.length - 1] instanceof Condition, "Cannot start a condition list with a constraint");
+      const variables = condsSpec.variables();
+      const variablesInConditions = getLocationsOfVariablesInConditions(variables, lhs);
+      const earliestCondition = Object.values(variablesInConditions).reduce((x,y) => Math.min(x, y[0]), 999);
+      if (earliestCondition === lhs.length - 1) {
+        (lhs[lhs.length - 1] as Condition).intraArithTests.push(condsSpec);
+      } else {
+        (lhs[lhs.length - 1] as Condition).extraArithTests.push(condsSpec);
+      }
+    }
+  }
+  return lhs;
+}
 
 semantics.addOperation<ProductionSpec[]>('toSpecs', {
   //Productions = Production+
@@ -28,17 +61,7 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
   //Production = "(" Condition+ "->" prodName ")"
   Production(lParen: Node, condsNode: Node, arrow: Node, prodName: Node, rParen: Node): ProductionSpec {
     const condsSpecs = condsNode.toSpecs();
-    const lhs: GenericCondition[] = [];
-    for (const condsSpec of condsSpecs) {
-      if(condsSpec instanceof Condition || condsSpec instanceof NegativeCondition) {
-        lhs.push(condsSpec as Condition);
-      } else if(condsSpec instanceof ConditionArithTest) {
-        strict.strict(lhs.length > 0, "Cannot start a condition list with a constraint");
-        strict.strict(lhs[lhs.length - 1] instanceof Condition, "Cannot start a condition list with a constraint");
-        //todo find if test is internal or external using getLocationsOfVariablesInConditions
-        (lhs[lhs.length - 1] as Condition).intraArithTests.push(condsSpec);
-      }
-    }
+    const lhs = condsSpecsToConditions(condsSpecs);
     const rhs = prodName.toSpecs();
     console.log(lhs, rhs);
     return {
@@ -71,8 +94,14 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
   },
 
   //AggregateCondition = "(" varSpecifier "<-" AggrSpecifier ")" "from"  "{" Condition+ "}"
-  AggregateCondition(lParen: Node, vasSpec: Node, assgn: Node, aggrSpec: Node, rParen: Node, from: Node, rBrace: Node, condsNode: Node, lBrace: Node) {
-
+  AggregateCondition(lParen: Node, varSpec: Node, assgn: Node, aggrSpec: Node, rParen: Node, from: Node, rBrace: Node, condsNode: Node, lBrace: Node) {
+    const variable = varSpec.toSpecs() as Field;
+    const {name, expr} = aggrSpec.toSpecs();
+    const condsSpecs = condsNode.toSpecs();
+    const conds = condsSpecsToConditions(condsSpecs);
+    const aggregateComputation = createAggregateComputation(name, expr);
+    strict.strict(aggregateComputation, `Aggregate ${name} does not exist`);
+    return new AggregateCondition(variable.v, aggregateComputation!!, conds);
   },
 
   //MatchSpecifier = varSpecifier | constSpecifier | Expr
@@ -92,12 +121,12 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     return Field.constant(toSpecs.join(''));
   },
 
-  //AggrSpecifier =  "#" (alnum)+ Expr
-  AggrSpecifier(hash: Node, lettersNode: Node, exprNode: Node) {
+  //AggrSpecifier =  "#" (alnum)+ "(" MatchOrOp? ")"
+  AggrSpecifier(hash: Node, lettersNode: Node, lParen: Node, exprNodeOpt: Node, rParen: Node) {
     const letters = lettersNode.toSpecs();
     const n = letters.join('');
-    const expr = exprNode.toSpecs(); //todo
-    return '#' + n;
+    const expr = exprNodeOpt?.toSpecs();
+    return { name: '#' +n, expr: expr?.[0]};
   },
 
   //Expr = "(" MathExpr op MathExpr ")"
@@ -116,6 +145,21 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     }
     return matchSpec;
   },
+
+  //MatchOrOp =  OpExpr | varSpecifier | constSpecifier
+  MatchOrOp(alt: Node) {
+    return alt.toSpecs();
+  },
+
+  //OpExpr = MathExpr op MathExpr
+  OpExpr(expr1Node: Node, opNode: Node, expr2Node: Node) {
+    const expr1 = expr1Node.toSpecs();
+    const expr2 = expr2Node.toSpecs();
+    const op = opNode.toSpecs()[0];
+    return new ConditionArithBinaryOp(expr1, op as ArithOp, expr2);
+  },
+
+  //MatchOrOp =  OpExpr | varSpecifier | constSpecifier
 
   //NotCondition = "-" "{" Condition+ "}"
   NotCondition(notNode: Node, lBrace: Node, condsNode: Node, rBrace: Node) {
