@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Implementation of RETE in Doorenbos' thesis, based on https://github.com/bollu/rete",
   "type": "module",
-  "main": "dist/app.js",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "compile": "tsc",
