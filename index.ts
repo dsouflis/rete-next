@@ -706,20 +706,41 @@ export class ProductionNode extends BetaMemory {
   }
 
   willFire() : [Token[], Token[]] {
+    return this.willFireCommittable(true);
+  }
+
+  canFire() : [Token[], Token[]] {
+    return this.willFireCommittable(false);
+  }
+
+  willFireTokenAdded(t: Token): boolean {
+    if(this.oldItems.find(x => x.equalTo(t))) {
+      return false; //Already fired
+    }
+    if(!this.items.find(x => x.equalTo(t))) {
+      return false; //Not found
+    }
+    this.oldItems.push(t);
+    return true;
+  }
+
+  private willFireCommittable(commit: boolean) {
     const itemsToRemoveOnFiring: Token[] = [];
     const itemsToAddOnFiring: Token[] = [];
     for (const item of this.items) {
-      if(!this.oldItems.find(t => t.equalTo(item))) {
+      if (!this.oldItems.find(t => t.equalTo(item))) {
         itemsToAddOnFiring.push(item);
       }
     }
     for (const item of this.oldItems) {
-      if(!this.items.find(t => t.equalTo(item))) {
+      if (!this.items.find(t => t.equalTo(item))) {
         itemsToRemoveOnFiring.push(item);
       }
     }
     const ret: [Token[], Token[]] = [itemsToAddOnFiring, itemsToRemoveOnFiring];
-    this.oldItems = [...this.items];
+    if (commit) {
+      this.oldItems = [...this.items];
+    }
     return ret;
   }
 
@@ -1374,6 +1395,16 @@ export class Condition {
 
   constructor(ident: Field, attr: Field, val: Field) {
     this.attrs = [ident, attr, val];
+  }
+
+  variables(): string[] {
+    const set = new Set<string>();
+    for (const attr of this.attrs) {
+      if(attr.type === FieldType.Var) {
+        set.add(attr.v);
+      }
+    }
+    return Array.from(set);
   }
 
   toString() {

@@ -30,7 +30,7 @@ function createAggregateComputation(name: string, expr: ConditionArithVar | null
   return null;
 }
 
-function condsSpecsToConditions(condsSpecs) {
+function condsSpecsToConditions(condsSpecs: any) {
   const lhs: GenericCondition[] = [];
   for (const condsSpec of condsSpecs) {
     if (condsSpec instanceof Condition || condsSpec instanceof NegativeCondition) {
@@ -63,7 +63,6 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     const condsSpecs = condsNode.toSpecs();
     const lhs = condsSpecsToConditions(condsSpecs);
     const rhs = prodName.toSpecs();
-    console.log(lhs, rhs);
     return {
       lhs,
       rhs,
@@ -187,14 +186,14 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     return l.toSpecs();
   },
 
-  _iter(...children) {
-    return children.map(x => x.toSpecs());
+  _iter(...children: any) {
+    return children.map((x: any) => x.toSpecs());
   },
-  _nonterminal(...children) {
-    return children.map(x => x.toSpecs());
+  _nonterminal(...children: any) {
+    return children.map((x: any) => x.toSpecs());
   },
   _terminal() {
-    return this.sourceString;
+    return (this as any).sourceString;
   },
 } as unknown as ActionDict<ProductionSpec[]>);
 
