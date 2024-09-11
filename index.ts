@@ -560,7 +560,8 @@ class BetaMemory extends Identifiable{
       }
     } else {
       const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
-      strict.strict(toRemove.length === 1); //todo
+      // strict.strict(toRemove.length === 1); //todo
+      if(toRemove.length === 0) return; //todo
       fullToken = toRemove[0];
       for (let child of this.children) {
         child.beta_activation(fullToken, add);
@@ -786,7 +787,8 @@ export class NccNode extends BetaMemory {
       }
     } else {
       const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
-      strict.strict(toRemove.length === 1); //todo
+      //strict.strict(toRemove.length === 1); //todo
+      if(toRemove.length === 0) return; //todo
       fullToken = toRemove[0];
       for (let child of this.children) {
         child.beta_activation(fullToken, add);
@@ -1725,6 +1727,7 @@ function build_or_share_alpha_memory_hashed(r: Rete, c: Condition) {
   strict.strict(false, "unimplemented");
 }
 
+const dummyWME = new WME('#dummy', '#dummy', '#dummy');
 
 // pg 37
 function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlierConds: GenericCondition[], j: JoinNode | null = null) {
@@ -1749,7 +1752,7 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       //Continue underneath
       currentBeta = nccNode;
       const dummyAlphaMemory = new AlphaMemory(new NeverTestNode());
-      dummyAlphaMemory.items = [new WME('#dummy', '#dummy', '#dummy')];
+      dummyAlphaMemory.items = [dummyWME];
       currentJoin = new JoinNode(dummyAlphaMemory, nccNode);
       nccNode.children.push(currentJoin)
       r.joinnodes.push(currentJoin);
