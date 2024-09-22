@@ -13,7 +13,7 @@ The original implementation lacked intra-condition tests (repetition of the same
 and this was added.
 
 ### Partial matches
-The original implementation only supported partial matches. An operation was added
+The original implementation only supported full matches. An operation was added
 to retrieve partial matches (initial version exists).
 
 ### Arithmetic tests
