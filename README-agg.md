@@ -8,6 +8,7 @@ messing up with token traversal), this condition causes a WME with the aggregate
 In contrast to how calculations for arithmetic conditions where implemented inside the library, support for aggregates
 is defined using programming artifacts. This does not preclude some such implementation in the future.
 
+## Walkthrough
 Let's take one of the productions in the corresponding tests as an example:
 
 `(<x> on <y>),(<cn> <- #SUM(<c>)) from {(<y> order <c>)} ⇒  prod1`
@@ -21,7 +22,9 @@ upon by a special beta memory, called an AggregateNode. The AggregateNode is coo
 memory that holds the current values of the aggregate for each owner token for the tokens maintained by the 
 AggregateNode. The owner token is the token, excluding the part that is within in aggregate branch. Essentially, the
 tokens are grouped by the owner tokens and the aggregate is computed on the set corresponding to each owner token,
-as this set changes.
+as this set changes. This is depicted in the following chart.
+
+![Rete with Aggregate Node](drawio/AggregateNode.png)
 
 Let us see how this plays out with an example. We have WME `(B1 on B2)`. If we add WME `(B2 order 1200)`, the AggregateNode
 receives token `((B2 order 1200)->(B1 on B2))`, whose owner token is `((B1 on B2))`. The special alpha memory that is
