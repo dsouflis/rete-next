@@ -30,7 +30,8 @@ Let us see how this plays out with an example. We have WME `(B1 on B2)`. If we a
 receives token `((B2 order 1200)->(B1 on B2))`, whose owner token is `((B1 on B2))`. The special alpha memory that is
 coupled with this AggregateNode receives WME `(1200 #token ((B1 on B2)))`, after which the join node that sits next to
 the branch for the AggregateNode, joining the beta memory that has token `((B1 on B2))` and that alpha memory, triggers
-the production with the token `((1200 #token ((B1 on B2)))->(B1 on B2))`.
+the production with the token `((1200 #token ((B1 on B2)))->(B1 on B2))`. This is done using a special join test, that 
+correlates the token coming from the beta side with the token inside the WME coming from the alpha side. 
 
 When WME `(B2 order 800)` is added, the token `((B2 order 800))->(B1 on B2))` arrives at the AggregateNode. In turn, it
 removes the old WME for the owner token from the special alpha memory, `(1200 #token ((B1 on B2)))` which cascades and
