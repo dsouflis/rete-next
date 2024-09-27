@@ -1253,9 +1253,17 @@ export class Field {
   toString() {
     switch (this.type) {
       case FieldType.Var: return `<${this.v}>`;
-      case FieldType.Const: return this.v;
+      case FieldType.Const: return quoteIfNeeded(this.v);
     }
   }
+}
+
+export function quoteIfNeeded(s: string): string {
+  if(s.split('')
+    .find(c => [' ', '\t', '\r', '\n'].includes(c))) {
+    return `'${s}'`;
+  }
+  return s;
 }
 
 export interface ConditionArithExpression {

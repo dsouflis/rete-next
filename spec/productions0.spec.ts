@@ -7,8 +7,24 @@ describe('The Productions0 parser', () => {
   it('can parse the whole of the grammar', () => {
     const input = `( (<x> on <y>) (<y> > (3 + <x>)) -{ (<y> left-of <z>)} (<w> <- #sum(<w>)) from {(<y> on <w>)} -> "prod 1")`;
     const reteParse = parseRete(input);
-    console.log(reteParse);
     expect('specs' in reteParse && reteParse.specs).to.exist;
+    if('specs' in reteParse) {
+      reteParse.specs.forEach(({lhs, rhs}) => {
+        console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', rhs);
+      })
+    }
+  });
+
+  it('can parse Cypher conditions', () => {
+    // const input = `(cypher {(:King)<--(k:Person&Author&Fisherman)-[:left_of]->(:Person) } cypher{()-->(:Person)} -> "prod1")`;
+    const input = `(cypher {(n:a_person&journalist)-->(:king)} -> "prod1")`;
+    const reteParse = parseRete(input);
+    expect('specs' in reteParse && reteParse.specs).to.exist;
+    if('specs' in reteParse) {
+      reteParse.specs.forEach(({lhs, rhs}) => {
+        console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', rhs);
+      })
+    }
   });
 
   it('can parse productions with simple conditions and add them to a Rete', () => {
