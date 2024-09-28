@@ -35,6 +35,8 @@ function createAggregateComputation(name: string, expr: ConditionArithVar | null
   return null;
 }
 
+let cypherAnonymousVarCounter = 0;
+
 function condsSpecsToConditions(condsSpecs: any) {
   const lhs: GenericCondition[] = [];
   for (const condsSpec of condsSpecs) {
@@ -60,8 +62,53 @@ function condsSpecsToConditions(condsSpecs: any) {
   return lhs;
 }
 
-function createConditionsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: CypherRelationship[]) {
-  return new MultipleConditions([new Condition(new Field(FieldType.Var, '_'), new Field(FieldType.Var, '_'), new Field(FieldType.Var, '_'))]);
+function createCondSpecsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: CypherRelationship[]) {
+  let currentLeft: CypherNode | null = nodeSpecs;
+  let remaining = [...relsSpecs];
+  const condSpecs: any[] = [];
+  do {
+    const {variable, labels} = currentLeft;
+    let firstEntityVariable = variable || `_${cypherAnonymousVarCounter++}`;
+    if(labels) {
+      for (const label of labels) {
+        condSpecs.push(new Condition(Field.var(firstEntityVariable), Field.constant('is-a'), Field.constant(label)));
+      }
+    }
+    if (remaining.length) {
+      const [{node: currentRight, pattern}, ...newRemaining] = remaining;
+      const {direction, filler} = pattern;
+      if(!currentRight.variable) {
+        currentRight.variable = `_${cypherAnonymousVarCounter++}`;
+      }
+      let relationName: string | null = null;
+      if(filler) {
+        const {variable, labels} = filler;
+        if(variable) throw new Error('Currently only relations that map directly to knowledge triples are supported');
+        if(labels) {
+          if(labels.length > 1)  throw new Error('Currently only relations that map directly to knowledge triples are supported');
+          if(labels.length) {
+            relationName = labels[0];
+          }
+        }
+      }
+      let relationField: Field;
+      if(!relationName) {
+        relationField = Field.var(`_${cypherAnonymousVarCounter++}`);
+      } else {
+        relationField = Field.constant(relationName);
+      }
+      if(direction === "right") {
+        condSpecs.push(new Condition(Field.var(firstEntityVariable), relationField, Field.var(currentRight.variable)));
+      } else {
+        condSpecs.push(new Condition(Field.var(currentRight.variable), relationField, Field.var(firstEntityVariable)));
+      }
+      currentLeft = currentRight;
+      remaining = newRemaining;
+    } else {
+      currentLeft = null;
+    }
+  } while(currentLeft);
+  return new MultipleConditions(condSpecs);
 }
 
 semantics.addOperation<ProductionSpec[]>('toSpecs', {
@@ -92,7 +139,7 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
   CypherCondition(cypher: Node, lBrace: Node, cnode: Node, crels: Node, rBrace: Node) {
       const nodeSpecs = cnode.toSpecs();
       const relsSpecs = crels.toSpecs();
-      return createConditionsFromCypherSpecs(nodeSpecs, relsSpecs); //todo
+      return createCondSpecsFromCypherSpecs(nodeSpecs, relsSpecs);
   },
 
   //CypherNode = "(" cypherVariable? LabelExpression? ")"
@@ -167,7 +214,12 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
   //    "<-[" PatternFiller "]-"
   //  | "-[" PatternFiller "]->"
   FullPattern(leftArrowPart: Node, filler: Node, rightArrowPart: Node) {
-    return {};
+    const arrowSpecs = leftArrowPart.toSpecs();
+    const fillerSpecs = filler.toSpecs();
+    return {
+      direction: arrowSpecs === '<-' ? 'left' : 'right',
+      filler: fillerSpecs,
+    } as CypherRelPattern;
   },
 
   //PatternFiller =  cypherVariable? LabelExpression?
@@ -183,7 +235,9 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
   //abbreviatedRelationship = "<--" | "-->"
   abbreviatedRelationship(arrowAlt: Node) {
     const toSpecs = arrowAlt.toSpecs();
-    return toSpecs;
+    return {
+      direction: toSpecs === '<--' ? 'left' : 'right',
+    } as CypherRelPattern;
   },
 
   //MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")"
@@ -320,8 +374,13 @@ export interface CypherNode {
   //todo properties & WHERE
 }
 
+export interface CypherRelPattern {
+  direction: 'left' | 'right',
+  filler?: CypherNode,
+}
+
 export interface CypherRelationship {
-  pattern: any, //todo
+  pattern: CypherRelPattern,
   node: CypherNode,
 }
 
