@@ -15,11 +15,11 @@ The syntax for conditions written in Cypher is `` cypher { ... } ``.
 It is important to note that only a subset of the MATCH syntax is covered. 
 
 - First of all, only fixed-length and non-linear patterns are covered.
-- Currently, only node property key-value expressions are supported.
 - Only label conjunctions are supported for nodes.
 - Only a single label is supported for relations, pending implementation of reified relationships 
 
 ## What is planned to be covered
+- Node property key-value expressions will be added soon.
 - Label property key-value expressions for relationships. 
  Some way needs to be devised to distinguish direct relations (i.e. 
 ``(_ rel _)``) that do not have properties and can encode a single label, in usual knowledge graph fashion, vs. reified relations (i.e
