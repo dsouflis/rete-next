@@ -59,3 +59,7 @@ A simple querying facility was added, using a transiently added production.
 
 ### Aggregates
 Support for computing aggregates has been added. This is explained in more detail [here](./README-agg.md).
+
+### Conditions written in Cypher
+The parser has been extended to create conditions in Cyper (graph database query language). This is explained 
+in more detail [here](./README-cypher.md).

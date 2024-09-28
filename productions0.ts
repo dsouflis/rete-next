@@ -40,6 +40,10 @@ function condsSpecsToConditions(condsSpecs: any) {
   for (const condsSpec of condsSpecs) {
     if (condsSpec instanceof Condition || condsSpec instanceof NegativeCondition) {
       lhs.push(condsSpec as Condition);
+    } else if (condsSpec instanceof MultipleConditions) {
+      for (const cond of condsSpec.conds) {
+        lhs.push(cond);
+      }
     } else if (condsSpec instanceof ConditionArithTest) {
       strict.strict(lhs.length > 0, "Cannot start a condition list with a constraint");
       strict.strict(lhs[lhs.length - 1] instanceof Condition, "Cannot start a condition list with a constraint");
@@ -54,6 +58,10 @@ function condsSpecsToConditions(condsSpecs: any) {
     }
   }
   return lhs;
+}
+
+function createConditionsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: CypherRelationship[]) {
+  return new MultipleConditions([new Condition(new Field(FieldType.Var, '_'), new Field(FieldType.Var, '_'), new Field(FieldType.Var, '_'))]);
 }
 
 semantics.addOperation<ProductionSpec[]>('toSpecs', {
@@ -84,7 +92,7 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
   CypherCondition(cypher: Node, lBrace: Node, cnode: Node, crels: Node, rBrace: Node) {
       const nodeSpecs = cnode.toSpecs();
       const relsSpecs = crels.toSpecs();
-      return new Condition(new Field(FieldType.Var, '_'), new Field(FieldType.Var, '_'), new Field(FieldType.Var, '_')); //todo
+      return createConditionsFromCypherSpecs(nodeSpecs, relsSpecs); //todo
   },
 
   //CypherNode = "(" cypherVariable? LabelExpression? ")"
@@ -315,6 +323,14 @@ export interface CypherNode {
 export interface CypherRelationship {
   pattern: any, //todo
   node: CypherNode,
+}
+
+export class MultipleConditions {
+  conds: GenericCondition[];
+
+  constructor(conds: GenericCondition[]) {
+    this.conds = conds;
+  }
 }
 
 export interface ProductionSpec {
