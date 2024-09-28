@@ -3,12 +3,39 @@ Productions = Production+
 
 Production = "(" Condition+ "->" prodName ")"
 
-Condition = MatchCondition | NotCondition | AggregateCondition
+Condition = MatchCondition | CypherCondition | NotCondition | AggregateCondition
+
+CypherCondition = "cypher" "{" CypherNode CypherRelationship* "}"
+
+CypherNode = "(" cypherVariable? LabelExpression? ")"
+
+LabelExpression = ":" LabelTerm
+
+LabelTerm = labelIdentifier LabelModifiers?
+
+LabelModifiers = LabelConjunction
+ 
+LabelConjunction = "&" LabelTerm 
+ 
+labelIdentifier = (alnum | "_")+
+
+cypherVariable = alnum+
+
+CypherRelationship = RelationshipPattern CypherNode
+
+RelationshipPattern = FullPattern | abbreviatedRelationship
+
+FullPattern =
+   "<-[" PatternFiller "]-"
+ | "-[" PatternFiller "]->"
+ 
+PatternFiller =  cypherVariable? LabelExpression?
+
+abbreviatedRelationship = "<--" | "-->"
 
 MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")"
 
 AggregateCondition = "(" varSpecifier "<-" AggrSpecifier ")" "from"  "{" Condition+ "}"
-
 
 MatchSpecifier = varSpecifier | constSpecifier | Expr
 
@@ -18,7 +45,9 @@ MathExpr = MatchSpecifier
 
 op = "+" | "-" | "*" | "/"
 
-constSpecifier = (alnum | "-")+ | comp
+constSpecifier = (alnum | "-" | "_")+ | quotedConst | comp
+
+quotedConst = "\\"" (alnum | space | "-" | "_")+ "\\""
 
 comp = "=" | "<>" | ">" | ">=" | "<" | "<="
 

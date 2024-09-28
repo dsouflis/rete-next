@@ -1,15 +1,20 @@
 import {ActionDict, grammars, Node} from "ohm-js";
 import {
   AggregateComputation,
-  AggregateCondition, AggregateCount, AggregateSum,
+  AggregateCondition,
+  AggregateCount,
+  AggregateSum,
   ArithOp,
   CompOp,
-  Condition, ConditionArithBinaryOp,
+  Condition,
+  ConditionArithBinaryOp,
   ConditionArithConst,
-  ConditionArithTest, ConditionArithVar,
+  ConditionArithTest,
+  ConditionArithVar,
   Field,
   FieldType,
-  GenericCondition, getLocationsOfVariablesInConditions,
+  GenericCondition,
+  getLocationsOfVariablesInConditions,
   isCompOp,
   NegativeCondition,
 } from "./index";
@@ -30,11 +35,17 @@ function createAggregateComputation(name: string, expr: ConditionArithVar | null
   return null;
 }
 
+let cypherAnonymousVarCounter = 0;
+
 function condsSpecsToConditions(condsSpecs: any) {
   const lhs: GenericCondition[] = [];
   for (const condsSpec of condsSpecs) {
     if (condsSpec instanceof Condition || condsSpec instanceof NegativeCondition) {
       lhs.push(condsSpec as Condition);
+    } else if (condsSpec instanceof MultipleConditions) {
+      for (const cond of condsSpec.conds) {
+        lhs.push(cond);
+      }
     } else if (condsSpec instanceof ConditionArithTest) {
       strict.strict(lhs.length > 0, "Cannot start a condition list with a constraint");
       strict.strict(lhs[lhs.length - 1] instanceof Condition, "Cannot start a condition list with a constraint");
@@ -49,6 +60,55 @@ function condsSpecsToConditions(condsSpecs: any) {
     }
   }
   return lhs;
+}
+
+function createCondSpecsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: CypherRelationship[]) {
+  let currentLeft: CypherNode | null = nodeSpecs;
+  let remaining = [...relsSpecs];
+  const condSpecs: any[] = [];
+  do {
+    const {variable, labels} = currentLeft;
+    let firstEntityVariable = variable || `_${cypherAnonymousVarCounter++}`;
+    if(labels) {
+      for (const label of labels) {
+        condSpecs.push(new Condition(Field.var(firstEntityVariable), Field.constant('is-a'), Field.constant(label)));
+      }
+    }
+    if (remaining.length) {
+      const [{node: currentRight, pattern}, ...newRemaining] = remaining;
+      const {direction, filler} = pattern;
+      if(!currentRight.variable) {
+        currentRight.variable = `_${cypherAnonymousVarCounter++}`;
+      }
+      let relationName: string | null = null;
+      if(filler) {
+        const {variable, labels} = filler;
+        if(variable) throw new Error('Currently only relations that map directly to knowledge triples are supported');
+        if(labels) {
+          if(labels.length > 1)  throw new Error('Currently only relations that map directly to knowledge triples are supported');
+          if(labels.length) {
+            relationName = labels[0];
+          }
+        }
+      }
+      let relationField: Field;
+      if(!relationName) {
+        relationField = Field.var(`_${cypherAnonymousVarCounter++}`);
+      } else {
+        relationField = Field.constant(relationName);
+      }
+      if(direction === "right") {
+        condSpecs.push(new Condition(Field.var(firstEntityVariable), relationField, Field.var(currentRight.variable)));
+      } else {
+        condSpecs.push(new Condition(Field.var(currentRight.variable), relationField, Field.var(firstEntityVariable)));
+      }
+      currentLeft = currentRight;
+      remaining = newRemaining;
+    } else {
+      currentLeft = null;
+    }
+  } while(currentLeft);
+  return new MultipleConditions(condSpecs);
 }
 
 semantics.addOperation<ProductionSpec[]>('toSpecs', {
@@ -69,10 +129,115 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     };
   },
 
-  //Condition = MatchCondition | NotCondition
+  //Condition = MatchCondition | CypherCondition | NotCondition | AggregateCondition
   Condition(alt: Node) {
     const cond = alt.toSpecs();
     return cond;
+  },
+
+  //CypherCondition = "cypher" "{" CypherNode CypherRelationship* "}"
+  CypherCondition(cypher: Node, lBrace: Node, cnode: Node, crels: Node, rBrace: Node) {
+      const nodeSpecs = cnode.toSpecs();
+      const relsSpecs = crels.toSpecs();
+      return createCondSpecsFromCypherSpecs(nodeSpecs, relsSpecs);
+  },
+
+  //CypherNode = "(" cypherVariable? LabelExpression? ")"
+  CypherNode(lParen: Node, variableOpt: Node, labelsOpt: Node, rParen: Node) {
+    const varSpecs = variableOpt?.toSpecs();
+    const labelSpecs = labelsOpt?.toSpecs()?.flatMap(x => x);
+    return {
+      variable: varSpecs?.join(''),
+      labels: labelSpecs,
+    } as CypherNode;
+  },
+
+  //cypherVariable = alnum+
+  cypherVariable(alt: Node) {
+    if (alt) {
+      const toSpecs = alt.toSpecs();
+      return toSpecs.join('');
+    }
+    return null;
+  },
+
+  //LabelExpression = ":" LabelTerm
+  LabelExpression(colon: Node, term: Node) {
+    const toSpecs = term.toSpecs();
+    return toSpecs;
+  },
+
+  //LabelTerm = labelIdentifier LabelModifiers?
+  LabelTerm(ident: Node, modifiersOpt: Node) {
+    const identToSpecs = ident.toSpecs();
+    const modifiersSpecs = modifiersOpt?.toSpecs()?.flatMap(x => x);
+    if (modifiersSpecs?.length) {
+      return [identToSpecs, ...modifiersSpecs];
+    } else {
+      return [identToSpecs];
+    }
+  },
+
+  // LabelModifiers = LabelConjunction
+  LabelModifiers(conj: Node) {
+    return conj.toSpecs();
+  },
+
+  //LabelConjunction = "&" LabelTerm
+  LabelConjunction(amp: Node, term: Node) {
+    return term.toSpecs();
+  },
+
+  //labelIdentifier = (alnum | "_")+
+  labelIdentifier(many: Node) {
+    const toSpecs = many.toSpecs();
+    return toSpecs.join('');
+  },
+
+  //CypherRelationship = RelationshipPattern CypherNode
+  CypherRelationship(pat: Node, cnode: Node) {
+    const patSpecs = pat.toSpecs();
+    const nodeSpecs = cnode.toSpecs();
+    return {
+      pattern: patSpecs,
+      node: nodeSpecs,
+    } as CypherRelationship;
+  },
+
+  //RelationshipPattern = FullPattern | abbreviatedRelationship
+  RelationshipPattern(alt: Node) {
+    const toSpecs = alt.toSpecs();
+    return toSpecs;
+  },
+
+  //FullPattern =
+  //    "<-[" PatternFiller "]-"
+  //  | "-[" PatternFiller "]->"
+  FullPattern(leftArrowPart: Node, filler: Node, rightArrowPart: Node) {
+    const arrowSpecs = leftArrowPart.toSpecs();
+    const fillerSpecs = filler.toSpecs();
+    return {
+      direction: arrowSpecs === '<-' ? 'left' : 'right',
+      filler: fillerSpecs,
+    } as CypherRelPattern;
+  },
+
+  //PatternFiller =  cypherVariable? LabelExpression?
+  PatternFiller(variableOpt: Node, labelsOpt: Node) {
+    const varSpecs = variableOpt?.toSpecs();
+    const labelSpecs = labelsOpt?.toSpecs()?.flatMap(x => x);
+    return {
+      variable: varSpecs?.join(''),
+      labels: labelSpecs,
+    } as CypherNode;
+  },
+
+  //abbreviatedRelationship = "<--" | "-->"
+  abbreviatedRelationship(arrowAlt: Node) {
+    const toSpecs = arrowAlt.toSpecs();
+    return {
+      direction: toSpecs === '<--' ? 'left' : 'right',
+    } as CypherRelPattern;
   },
 
   //MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")"
@@ -114,10 +279,16 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     return Field.var(toSpecs.join(''));
   },
 
-  //constSpecifier = (alnum | "-")+ | comp
+  //constSpecifier = (alnum | "-")+ | quotedConst | comp
   constSpecifier(alt: Node) {
     const toSpecs = alt.toSpecs();
     return Field.constant(toSpecs.join(''));
+  },
+
+  //quotedConst = "'\" (alnum|space)+ "\""
+  quotedConst(quote: Node, str: Node, quote2: Node) {
+    const toSpecs = str.toSpecs();
+    return toSpecs;
   },
 
   //AggrSpecifier =  "#" (alnum)+ "(" MatchOrOp? ")"
@@ -196,6 +367,30 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     return (this as any).sourceString;
   },
 } as unknown as ActionDict<ProductionSpec[]>);
+
+export interface CypherNode {
+  variable?: string,
+  labels?: string[],
+  //todo properties & WHERE
+}
+
+export interface CypherRelPattern {
+  direction: 'left' | 'right',
+  filler?: CypherNode,
+}
+
+export interface CypherRelationship {
+  pattern: CypherRelPattern,
+  node: CypherNode,
+}
+
+export class MultipleConditions {
+  conds: GenericCondition[];
+
+  constructor(conds: GenericCondition[]) {
+    this.conds = conds;
+  }
+}
 
 export interface ProductionSpec {
   lhs: GenericCondition[],
