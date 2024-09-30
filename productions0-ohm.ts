@@ -7,7 +7,21 @@ Condition = MatchCondition | CypherCondition | NotCondition | AggregateCondition
 
 CypherCondition = "cypher" "{" CypherNode CypherRelationship* "}"
 
-CypherNode = "(" cypherVariable? LabelExpression? ")"
+CypherNode = "(" cypherVariable? LabelExpression? PropertyKeyValueExpression? PropertyWhereExpression? ")"
+
+PropertyKeyValueExpression = "{" PropertyKeyValuePair PropertyKeyValuePairList* "}"
+
+PropertyKeyValuePairList =  ("," PropertyKeyValuePair)+
+
+PropertyKeyValuePair = cypherVariable ":" constSpecifier
+
+PropertyWhereExpression = "where" NodePropertyComparisonList
+
+NodePropertyComparisonList = NodePropertyComparison ("and" NodePropertyComparisonList)*
+
+NodePropertyComparison = QualifiedProperty comp constSpecifier
+
+QualifiedProperty = cypherVariable "." cypherVariable
 
 LabelExpression = ":" LabelTerm
 

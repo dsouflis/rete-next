@@ -62,16 +62,39 @@ function condsSpecsToConditions(condsSpecs: any) {
   return lhs;
 }
 
+function newCypherVar() {
+  return `_${cypherAnonymousVarCounter++}`;
+}
+
 function createCondSpecsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: CypherRelationship[]) {
   let currentLeft: CypherNode | null = nodeSpecs;
   let remaining = [...relsSpecs];
   const condSpecs: any[] = [];
   do {
-    const {variable, labels} = currentLeft;
-    let firstEntityVariable = variable || `_${cypherAnonymousVarCounter++}`;
+    const {variable, labels, properties, where} = currentLeft;
+    let firstEntityVariable = variable || newCypherVar();
     if(labels) {
       for (const label of labels) {
         condSpecs.push(new Condition(Field.var(firstEntityVariable), Field.constant('is-a'), Field.constant(label)));
+      }
+    }
+    if(properties) {
+      for (const propertyElem of properties) {
+        const { property, value} = propertyElem;
+        condSpecs.push(new Condition(Field.var(firstEntityVariable), Field.constant(property), value));
+      }
+    }
+    if(where?.length) {
+      for (const nodePropertyComp of where) {
+        const { property, comp, value} = nodePropertyComp;
+        if(property.variable !== firstEntityVariable) {
+          throw new Error(`Only properties of the node are permitted in node-level WHERE`);
+        }
+        const valueVar = newCypherVar();
+        const condition = new Condition(Field.var(firstEntityVariable), Field.constant(property.property), Field.var(valueVar));
+        condSpecs.push(condition);
+        const conditionArithTest = new ConditionArithTest(new ConditionArithVar(valueVar), comp, fieldToArith(value));
+        condition.intraArithTests.push(conditionArithTest);
       }
     }
     if (remaining.length) {
@@ -93,7 +116,7 @@ function createCondSpecsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: Cypher
       }
       let relationField: Field;
       if(!relationName) {
-        relationField = Field.var(`_${cypherAnonymousVarCounter++}`);
+        relationField = Field.var(newCypherVar());
       } else {
         relationField = Field.constant(relationName);
       }
@@ -142,14 +165,53 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
       return createCondSpecsFromCypherSpecs(nodeSpecs, relsSpecs);
   },
 
-  //CypherNode = "(" cypherVariable? LabelExpression? ")"
-  CypherNode(lParen: Node, variableOpt: Node, labelsOpt: Node, rParen: Node) {
+  //CypherNode = "(" cypherVariable? LabelExpression? PropertyKeyValueExpression? PropertyWhereExpression? ")"
+  CypherNode(lParen: Node, variableOpt: Node, labelsOpt: Node, propertiesOpt: Node, whereOpt: Node, rParen: Node) {
     const varSpecs = variableOpt?.toSpecs();
     const labelSpecs = labelsOpt?.toSpecs()?.flatMap(x => x);
+    const propertiesSpecs = propertiesOpt.toSpecs();
+    const whereSpecs = whereOpt.toSpecs();
     return {
       variable: varSpecs?.join(''),
       labels: labelSpecs,
+      properties: propertiesSpecs?.[0],
+      where: whereSpecs?.[0],
     } as CypherNode;
+  },
+
+  //PropertyWhereExpression = "where" NodePropertyComparisonList
+  PropertyWhereExpression(whereNode: Node, comps: Node) {
+    const toSpecs = comps.toSpecs();
+    return toSpecs;
+  },
+
+  // NodePropertyComparisonList = NodePropertyComparison ("and" NodePropertyComparisonList)*
+  NodePropertyComparisonList(compNode: Node, ands: Node, compsNode: Node) {
+    const compSpecs = compNode.toSpecs();
+    const compsSpecs = compsNode.toSpecs();
+    return [compSpecs, ...compsSpecs];
+  },
+
+  // NodePropertyComparison = QualifiedProperty comp constSpecifier
+  NodePropertyComparison(propNode: Node, compNode: Node, constNode: Node) {
+    const property = propNode.toSpecs();
+    const comp = compNode.toSpecs()[0];
+    const value = constNode.toSpecs();
+    return {
+      property,
+      comp,
+      value,
+    } as NodePropertyComp;
+  },
+
+  // QualifiedProperty = cypherVariable "." cypherVariable
+  QualifiedProperty(varNode: Node, dot: Node, propNode: Node) {
+    const variable = varNode.toSpecs();
+    const property = propNode.toSpecs();
+    return {
+      variable,
+      property,
+    } as QualifiedProperty;
   },
 
   //cypherVariable = alnum+
@@ -159,6 +221,32 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
       return toSpecs.join('');
     }
     return null;
+  },
+
+  //PropertyKeyValueExpression = "{" PropertyKeyValuePair PropertyKeyValuePairList* "}"
+  PropertyKeyValueExpression(lBrace: Node, propKV: Node, propKVs: Node, rBrace: Node) {
+    const propSpecs = propKV.toSpecs();
+    const propsSpecs = propKVs.toSpecs();
+    if(propsSpecs.length) {
+      return [propSpecs, ...propsSpecs[0]]
+    }
+    return [propSpecs];
+  },
+
+  //PropertyKeyValuePairList =  ("," PropertyKeyValuePair)+
+  PropertyKeyValuePairList(rep: Node, b: Node) {
+    const toSpecs = b.toSpecs();
+    return toSpecs;
+  },
+
+  //PropertyKeyValuePair = cypherVariable ":" constSpecifier
+  PropertyKeyValuePair(varNode: Node, colon: Node, constNode: Node) {
+    const property = varNode.toSpecs();
+    const value = constNode.toSpecs();
+    return {
+      property,
+      value,
+    } as PropertyKeyValuePair;
   },
 
   //LabelExpression = ":" LabelTerm
@@ -329,8 +417,6 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     return new ConditionArithBinaryOp(expr1, op as ArithOp, expr2);
   },
 
-  //MatchOrOp =  OpExpr | varSpecifier | constSpecifier
-
   //NotCondition = "-" "{" Condition+ "}"
   NotCondition(notNode: Node, lBrace: Node, condsNode: Node, rBrace: Node) {
     const conds = condsNode.toSpecs();
@@ -371,7 +457,8 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
 export interface CypherNode {
   variable?: string,
   labels?: string[],
-  //todo properties & WHERE
+  properties?: PropertyKeyValuePair[],
+  where?: NodePropertyComp[],
 }
 
 export interface CypherRelPattern {
@@ -390,6 +477,22 @@ export class MultipleConditions {
   constructor(conds: GenericCondition[]) {
     this.conds = conds;
   }
+}
+
+interface PropertyKeyValuePair {
+  property: string,
+  value: Field,
+}
+interface QualifiedProperty {
+  variable: string,
+  property: string,
+}
+
+interface NodePropertyComp {
+  property: QualifiedProperty,
+  comp: CompOp,
+  value: Field,
+
 }
 
 export interface ProductionSpec {
