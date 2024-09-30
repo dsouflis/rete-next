@@ -40,17 +40,19 @@ being triggered by the token `((2000 #token ((B1 on B2)))->(B1 on B2))`.
 
 ## The AggregateComputation abstract class
 The base class for all implementations of aggregates is an abstract class, `AggregateComputation`. This class
-specifies the following operations that every implementation should offer:
+specifies and one value that is injected by the library while compiling the conditions and
+the following operations that every implementation should offer:
 
-    abstract variables(): string[];
-    abstract init(): T;
-    abstract mapper(map: StringToStringMap): T;
-    abstract reducer(v1: T, v2: T): T;
-    finalizer(v: T): string { return (v as any).toString(); }
-
-and one value that is injected by the library while compiling the conditions:
-
-    locationInToken: LocationsOfVariablesInConditions = {};
+```typescript
+export abstract class AggregateComputation<T> {
+  locationInToken: LocationsOfVariablesInConditions = {};
+  abstract variables(): string[];
+  abstract init(): T;
+  abstract mapper(map: StringToStringMap): T;
+  abstract reducer(v1: T, v2: T): T;
+  finalizer(v: T): string { return (v as any).toString(); }
+}
+```
 
 Method `variables` is meant to inform the library of which variables in the token are used by the aggregate.
 
