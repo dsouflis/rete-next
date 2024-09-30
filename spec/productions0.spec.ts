@@ -28,6 +28,28 @@ describe('The Productions0 parser', () => {
     }
   });
 
+  it('can parse conditions for reified relations', () => {
+    const input = `( (<x> rel <y>) as <r> (<r> date <d>) -> "prod1")`;
+    const reteParse = parseRete(input);
+    expect('specs' in reteParse && reteParse.specs).to.exist;
+    if('specs' in reteParse) {
+      const rete = new Rete();
+      reteParse.specs.forEach(({lhs, rhs}) => {
+        rete.addProduction(lhs, rhs);
+        console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', rhs);
+      });
+
+      const p = rete.productions.find(p => p.rhs === "prod1");
+      expect(p).to.exist;
+
+      const wme = rete.add('a', 'rel', 'b');
+      rete.add(wme, 'date', '2024-09-30');
+      expect(p!!.items.length).to.equal(1);
+      p!!.items.forEach(t => console.log(t.toString()));
+
+    }
+  });
+
   it('can parse productions with simple conditions and add them to a Rete', () => {
     console.log('====can parse productions with simple conditions and add them to a Rete===');
     const input = `( (<x> on <y>) -> "prod1")`;

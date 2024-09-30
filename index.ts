@@ -81,6 +81,7 @@ class Identifiable {
 }
 
 enum WMEFieldType {
+  Whole = -2,
   Ident = 0,
   Attr = 1,
   Val = 2,
@@ -101,6 +102,7 @@ function printFieldType(field: WMEFieldType) {
 export class WME {
     fields: any[] = ['','',''];
     get_field(ty: WMEFieldType) : any {
+      if(ty === WMEFieldType.Whole) return this;
         return this.fields[ty];
     }
 
@@ -1402,6 +1404,7 @@ export class Condition {
   attrs: Field[];
   intraArithTests: ConditionArithTest[] = [];
   extraArithTests: ConditionArithTest[] = [];
+  wholeWmeVar ?: string;
 
   constructor(ident: Field, attr: Field, val: Field) {
     this.attrs = [ident, attr, val];
@@ -1420,7 +1423,7 @@ export class Condition {
   toString() {
     const intraTestsString = this.intraArithTests.map(t => t.toString()).join();
     const extraTestsString = this.extraArithTests.map(t => t.toString()).join();
-    return `(${this.attrs.map(f => f.toString()).join(' ')})${intraTestsString}${extraTestsString}`;
+    return `(${this.attrs.map(f => f.toString()).join(' ')})${intraTestsString}${extraTestsString}` + (this.wholeWmeVar ? ` as <${this.wholeWmeVar}>` : '');
   }
 }
 
@@ -1536,6 +1539,7 @@ function lookup_earlier_cond_with_field(
   for(let it = i; it >= 0; --it) {
     if(earlierConds[it] instanceof Condition) {
       const cond: Condition = earlierConds[it] as Condition;
+      if(cond?.wholeWmeVar == v) return [i, WMEFieldType.Whole];
       for (let j = 0; j < WMEFieldType.NumFields; ++j) {
         if (cond.attrs[j].type != FieldType.Var) continue;
         if (cond.attrs[j].v == v) {
@@ -1543,7 +1547,8 @@ function lookup_earlier_cond_with_field(
           return [i, f2];
         }
       }
-    }    i--;
+    }
+    i--;
   }
   i = f2 = -1;
   return [i,f2];

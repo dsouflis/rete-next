@@ -47,7 +47,7 @@ PatternFiller =  cypherVariable? LabelExpression?
 
 abbreviatedRelationship = "<--" | "-->"
 
-MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")"
+MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")" ("as" varSpecifier)?
 
 AggregateCondition = "(" varSpecifier "<-" AggrSpecifier ")" "from"  "{" Condition+ "}"
 

@@ -63,3 +63,18 @@ Support for computing aggregates has been added. This is explained in more detai
 ### Conditions written in Cypher
 The parser has been extended to create conditions in Cyper (graph database query language). This is explained 
 in more detail [here](./README-cypher.md).
+
+### Reified relations were added to support property graphs
+Property graphs support relationships having properties. To allow Rete-Next to be used with knowledge bases coming
+from property graphs (see section on Cypher), one small addition was done: the ability of a Condition to assign a
+WME to a variable. 
+
+Let us look at the production `( (<x> rel <y>) as <r> (<r> date <d>) -> "prod1")`. Note the suffix of 
+`(<x> rel <y>)` which assigns the whole WME it matches to variable `<r>`. It is this mechanism that allows the 
+relation to have properties, because the WME can be used as an atom inside other WMEs. If you look at the relevant
+test, the operation looks like this:
+
+```typescript
+      const wme = rete.add('a', 'rel', 'b');
+      rete.add(wme, 'date', '2024-09-30');
+```

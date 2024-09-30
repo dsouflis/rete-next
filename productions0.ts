@@ -328,8 +328,9 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     } as CypherRelPattern;
   },
 
-  //MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")"
-  MatchCondition(lParen: Node, matchSpec1: Node, matchSpec2: Node, matchSpec3: Node, rParen: Node) {
+  //MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")" ("as" varSpecifier)?
+  MatchCondition(lParen: Node, matchSpec1: Node, matchSpec2: Node, matchSpec3: Node, rParen: Node, asOpt: Node, wholeVarNode: Node) {
+    const wholeVar = wholeVarNode.toSpecs();
     let match1 = matchSpec1.toSpecs();
     const match2 = matchSpec2.toSpecs();
     let match3 = matchSpec3.toSpecs();
@@ -342,7 +343,11 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
       }
       return new ConditionArithTest(match1, (match2 as Field).v as CompOp, match3);
     }
-    return new Condition(match1, match2, match3);
+    const condition = new Condition(match1, match2, match3);
+    if(wholeVar?.length) {
+      condition.wholeWmeVar = wholeVar[0].v;
+    }
+    return condition;
   },
 
   //AggregateCondition = "(" varSpecifier "<-" AggrSpecifier ")" "from"  "{" Condition+ "}"
