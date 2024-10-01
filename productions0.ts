@@ -168,7 +168,7 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
   //CypherNode = "(" cypherVariable? LabelExpression? PropertyKeyValueExpression? PropertyWhereExpression? ")"
   CypherNode(lParen: Node, variableOpt: Node, labelsOpt: Node, propertiesOpt: Node, whereOpt: Node, rParen: Node) {
     const varSpecs = variableOpt?.toSpecs();
-    const labelSpecs = labelsOpt?.toSpecs()?.flatMap(x => x);
+    const labelSpecs = labelsOpt?.toSpecs()?.flatMap((x:any) => x);
     const propertiesSpecs = propertiesOpt.toSpecs();
     const whereSpecs = whereOpt.toSpecs();
     return {
@@ -258,7 +258,7 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
   //LabelTerm = labelIdentifier LabelModifiers?
   LabelTerm(ident: Node, modifiersOpt: Node) {
     const identToSpecs = ident.toSpecs();
-    const modifiersSpecs = modifiersOpt?.toSpecs()?.flatMap(x => x);
+    const modifiersSpecs = modifiersOpt?.toSpecs()?.flatMap((x:any) => x);
     if (modifiersSpecs?.length) {
       return [identToSpecs, ...modifiersSpecs];
     } else {
@@ -313,7 +313,7 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
   //PatternFiller =  cypherVariable? LabelExpression?
   PatternFiller(variableOpt: Node, labelsOpt: Node) {
     const varSpecs = variableOpt?.toSpecs();
-    const labelSpecs = labelsOpt?.toSpecs()?.flatMap(x => x);
+    const labelSpecs = labelsOpt?.toSpecs()?.flatMap((x:any) => x);
     return {
       variable: varSpecs?.join(''),
       labels: labelSpecs,
