@@ -43,7 +43,7 @@ FullPattern =
    "<-[" PatternFiller "]-"
  | "-[" PatternFiller "]->"
  
-PatternFiller =  cypherVariable? LabelExpression?
+PatternFiller =  cypherVariable? LabelExpression? PropertyKeyValueExpression? PropertyWhereExpression?
 
 abbreviatedRelationship = "<--" | "-->"
 

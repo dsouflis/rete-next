@@ -17,7 +17,7 @@ describe('The Productions0 parser', () => {
 
   it('can parse Cypher conditions', () => {
     // const input = `(cypher {(grandparent:Person)-[:parent_of]->(:Person)-[:parent_of]->(grandchild:Person)} -> "prod1")`;
-    const input = `(cypher {(:King {name: "Henry", age: 30})<--(k:Person&Author&Fisherman where k.age < 30)-[:left_of]->(:Person) } cypher{()-->(:Person)} -> "prod1")`;
+    const input = `(cypher {(:King {name: "Henry", age: 30})<--(k:Person&Author&Fisherman where k.age < 30)-[r:left_of {position:"prominent"} where r.distance > 10]->(:Person) } cypher{()-->(:Person)} -> "prod1")`;
     // const input = `(cypher {(n:a_person&journalist)-->(:king)} -> "prod1")`;
     const reteParse = parseRete(input);
     expect('specs' in reteParse && reteParse.specs).to.exist;

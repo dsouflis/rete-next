@@ -104,15 +104,24 @@ function createCondSpecsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: Cypher
         currentRight.variable = `_${cypherAnonymousVarCounter++}`;
       }
       let relationName: string | null = null;
+      let relationVar: string | null = null;
+      let relationProperties: PropertyKeyValuePair[] | undefined = undefined;
+      let relationWhere: NodePropertyComp[] | undefined = undefined;
       if(filler) {
-        const {variable, labels} = filler;
-        if(variable) throw new Error('Currently only relations that map directly to knowledge triples are supported');
+        const {variable, labels, properties, where} = filler;
+        if(variable) {
+          relationVar = variable;
+        } else if(properties?.length || where?.length) {
+          relationVar = newCypherVar();
+        }
         if(labels) {
           if(labels.length > 1)  throw new Error('Currently only relations that map directly to knowledge triples are supported');
           if(labels.length) {
             relationName = labels[0];
           }
         }
+        relationProperties = properties;
+        relationWhere = where;
       }
       let relationField: Field;
       if(!relationName) {
@@ -120,11 +129,37 @@ function createCondSpecsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: Cypher
       } else {
         relationField = Field.constant(relationName);
       }
+      let condition: Condition;
       if(direction === "right") {
-        condSpecs.push(new Condition(Field.var(firstEntityVariable), relationField, Field.var(currentRight.variable)));
+        condition = new Condition(Field.var(firstEntityVariable), relationField, Field.var(currentRight.variable));
       } else {
-        condSpecs.push(new Condition(Field.var(currentRight.variable), relationField, Field.var(firstEntityVariable)));
+        condition = new Condition(Field.var(currentRight.variable), relationField, Field.var(firstEntityVariable));
       }
+      condSpecs.push(condition);
+      if(relationVar) {
+        condition.wholeWmeVar = relationVar;
+        if(relationProperties) {
+          for (const propertyElem of relationProperties) {
+            const { property, value} = propertyElem;
+            condSpecs.push(new Condition(Field.var(relationVar), Field.constant(property), value));
+          }
+        }
+        if(relationWhere?.length) {
+          for (const nodePropertyComp of relationWhere) {
+            const { property, comp, value} = nodePropertyComp;
+            if(property.variable !== relationVar) {
+              throw new Error(`Only properties of the relation are permitted in relation-level WHERE`);
+            }
+            const valueVar = newCypherVar();
+            const condition = new Condition(Field.var(relationVar), Field.constant(property.property), Field.var(valueVar));
+            condSpecs.push(condition);
+            const conditionArithTest = new ConditionArithTest(new ConditionArithVar(valueVar), comp, fieldToArith(value));
+            condition.intraArithTests.push(conditionArithTest);
+          }
+        }
+
+      }
+
       currentLeft = currentRight;
       remaining = newRemaining;
     } else {
@@ -310,13 +345,17 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     } as CypherRelPattern;
   },
 
-  //PatternFiller =  cypherVariable? LabelExpression?
-  PatternFiller(variableOpt: Node, labelsOpt: Node) {
+  //PatternFiller =  cypherVariable? LabelExpression? PropertyKeyValueExpression? PropertyWhereExpression?
+  PatternFiller(variableOpt: Node, labelsOpt: Node, propertiesOpt: Node, whereOpt: Node) {
     const varSpecs = variableOpt?.toSpecs();
     const labelSpecs = labelsOpt?.toSpecs()?.flatMap((x:any) => x);
+    const propertiesSpecs = propertiesOpt.toSpecs();
+    const whereSpecs = whereOpt.toSpecs();
     return {
       variable: varSpecs?.join(''),
       labels: labelSpecs,
+      properties: propertiesSpecs?.[0],
+      where: whereSpecs?.[0],
     } as CypherNode;
   },
 
