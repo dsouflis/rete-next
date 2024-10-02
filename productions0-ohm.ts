@@ -1,5 +1,13 @@
 export const production0GrammarContents = `Productions0 {
-Productions = Production+
+Productions = ProductionItem+
+
+ProductionItem = Production | Query | CypherQuery
+
+Query = "(" Condition+ "->" (varSpecifier ("," varSpecifier)+ )? ")"
+
+CypherQuery = "match" PlainCypherCondition "return" cypherVariable ("," cypherVariable)*
+
+PlainCypherCondition = CypherNode CypherRelationship*
 
 Production = "(" Condition+ "->" prodName ")"
 

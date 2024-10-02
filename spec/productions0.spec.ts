@@ -199,4 +199,55 @@ describe('The Productions0 parser', () => {
 
     console.log("====\n");
   });
+
+  it("can parse queries and run them on a Rete", () => {
+    console.log("====can parse queries and run them on a Rete:====\n");
+
+    const input = `((<x> on <y>) (<y> on <z>) -> <x>,<z>) ((<x> on <y>) -> <x>,<y>)`;
+    const reteParse = parseRete(input);
+    console.log(reteParse);
+    expect('specs' in reteParse && reteParse.specs).to.exist;
+
+    console.log("running query\n");
+    const rete = new Rete();
+    const parsed = reteParse as ParseSuccess;
+
+    rete.add("B1", "on", "B2");
+    rete.add("B2", "on", "B3");
+
+    for (const {lhs, variables} of parsed.specs) {
+      const stringToStringMaps = rete.query(lhs, variables!);
+      expect(stringToStringMaps.length).to.be.oneOf([1,2]);
+      console.log(stringToStringMaps);
+    }
+
+    console.log("====\n");
+  });
+
+  it("can parse Cypher queries and run them on a Rete", () => {
+    console.log("====can parse Cypher queries and run them on a Rete:====\n");
+
+    const input = `
+    match (x)-[:on]->(y)-[:on]->(z) return x, z
+    match (x)-[:on]->(y) return x
+    `;
+    const reteParse = parseRete(input);
+    console.log(reteParse);
+    expect('specs' in reteParse && reteParse.specs).to.exist;
+
+    console.log("running query\n");
+    const rete = new Rete();
+    const parsed = reteParse as ParseSuccess;
+
+    rete.add("B1", "on", "B2");
+    rete.add("B2", "on", "B3");
+
+    for (const {lhs, variables} of parsed.specs) {
+      const stringToStringMaps = rete.query(lhs, variables!);
+      expect(stringToStringMaps.length).to.be.oneOf([1,2]);
+      console.log(stringToStringMaps);
+    }
+
+    console.log("====\n");
+  });
 });

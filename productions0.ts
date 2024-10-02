@@ -170,10 +170,49 @@ function createCondSpecsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: Cypher
 }
 
 semantics.addOperation<ProductionSpec[]>('toSpecs', {
-  //Productions = Production+
+  //Productions = ProductionItem+
   Productions(specs: Node): ProductionSpec[] {
     const toSpecs = specs.toSpecs();
     return toSpecs;
+  },
+
+  //ProductionItem = Production | Query | CypherQuery
+  ProductionItem(altNode: Node) {
+    const toSpecs = altNode.toSpecs();
+    return toSpecs;
+  },
+
+  // Query = "(" Condition+ "->" (varSpecifier ("," varSpecifier)+ )? ")"
+  Query(lParen: Node, condsNode: Node, arrow: Node, varOpt: Node, commasOpt: Node, varsOpt: Node, rParen: Node) {
+    const condsSpecs = condsNode.toSpecs();
+    const lhs = condsSpecsToConditions(condsSpecs);
+    const varSpec = varOpt.toSpecs()?.[0];
+    const varSpecs = varsOpt.toSpecs()?.[0];
+    let fields: Field[] = [];
+    if(varSpec) {
+      fields.push(varSpec);
+    }
+    if(varSpecs) {
+      fields = [...fields, ...varSpecs];
+    }
+    const variables = fields.map(f => f.v);
+    return {
+      lhs,
+      variables,
+    } as ProductionSpec;
+  },
+
+  // CypherQuery = "match" PlainCypherCondition "return" cypherVariable ("," cypherVariable)+
+  CypherQuery(matchNode: Node, condNode: Node, returnNode: Node, varNode: Node, commasOpt: Node, varsOpt: Node) {
+    const condsSpecs = condNode.toSpecs();
+    const lhs = condsSpecsToConditions([condsSpecs]);
+    const varSpec = varNode.toSpecs();
+    const varSpecs = varsOpt.toSpecs();
+    const variables = [varSpec, ...varSpecs];
+    return {
+      lhs,
+      variables,
+    } as ProductionSpec;
   },
 
   //Production = "(" Condition+ "->" prodName ")"
@@ -191,6 +230,13 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
   Condition(alt: Node) {
     const cond = alt.toSpecs();
     return cond;
+  },
+
+  //PlainCypherCondition = CypherNode CypherRelationship*
+  PlainCypherCondition(cnode: Node, crels: Node) {
+    const nodeSpecs = cnode.toSpecs();
+    const relsSpecs = crels.toSpecs();
+    return createCondSpecsFromCypherSpecs(nodeSpecs, relsSpecs);
   },
 
   //CypherCondition = "cypher" "{" CypherNode CypherRelationship* "}"
@@ -541,7 +587,8 @@ interface NodePropertyComp {
 
 export interface ProductionSpec {
   lhs: GenericCondition[],
-  rhs: string,
+  rhs?: string,
+  variables?: string[],
 }
 
 export interface ParseError {
