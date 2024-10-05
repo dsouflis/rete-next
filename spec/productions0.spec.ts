@@ -35,6 +35,7 @@ describe('The Productions0 parser', () => {
     if('specs' in reteParse) {
       const rete = new Rete();
       reteParse.specs.forEach(({lhs, rhs}) => {
+        if(!rhs) return;
         rete.addProduction(lhs, rhs);
         console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', rhs);
       });
@@ -62,6 +63,7 @@ describe('The Productions0 parser', () => {
     const parsed = reteParse as ParseSuccess;
 
     for (const {lhs, rhs} of parsed.specs) {
+      if(!rhs) return;
       rete.addProduction(lhs, rhs);
     }
 
@@ -92,6 +94,7 @@ describe('The Productions0 parser', () => {
     const parsed = reteParse as ParseSuccess;
 
     for (const {lhs, rhs} of parsed.specs) {
+      if(!rhs) return;
       rete.addProduction(lhs, rhs);
     }
 
@@ -122,6 +125,7 @@ describe('The Productions0 parser', () => {
     const parsed = reteParse as ParseSuccess;
 
     for (const {lhs, rhs} of parsed.specs) {
+      if(!rhs) return;
       rete.addProduction(lhs, rhs);
     }
 
@@ -175,6 +179,7 @@ describe('The Productions0 parser', () => {
     const parsed = reteParse as ParseSuccess;
 
     for (const {lhs, rhs} of parsed.specs) {
+      if(!rhs) return;
       rete.addProduction(lhs, rhs);
     }
 

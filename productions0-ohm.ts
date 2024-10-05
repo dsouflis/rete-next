@@ -5,7 +5,7 @@ ProductionItem = Production | Query | CypherQuery
 
 Query = "(" Condition+ "->" (varSpecifier ("," varSpecifier)+ )? ")"
 
-CypherQuery = "match" PlainCypherCondition "return" cypherVariable ("," cypherVariable)*
+CypherQuery = ("match"|"MATCH") PlainCypherCondition ("return"|"RETURN") cypherVariable ("," cypherVariable)*
 
 PlainCypherCondition = CypherNode CypherRelationship*
 
