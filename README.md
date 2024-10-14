@@ -33,8 +33,8 @@ A re-match based implementation of WME removals was added.
 For working with fuzzy sets, the concept of a Fuzzy Variable has been added. See [here](./README-fuzzy.md).
 
 ### NCCs (Negated Conjunctive Conditions)
-An implementation of negated conjunctive conditions has been added, based on the ideas in theDoorenbos thesis. 
-It was reimplemented to work with re-match based removals.
+An implementation of negated conjunctive conditions has been added, based on the ideas in the Doorenbos thesis. 
+It was reimplemented to work with re-match based removals. The syntax is `-{cond1, cond2...}`.
 
 ### "Truth Maintenance"
 A TMS is a separate module from the matcher, but a simple implementation  of what it entails for WME additions 
@@ -79,3 +79,11 @@ test, the operation looks like this:
       const wme = rete.add('a', 'rel', 'b');
       rete.add(wme, 'date', '2024-09-30');
 ```
+
+
+### Positive Conjunctive Conditions
+The counterpart to Negative Conjunctive Conditions, Positive Conjunctive Conditions are true when the constituent
+conditions can match the knowledge base. The difference between listing them after the preceding conditions is that,
+in that case, each distinct match results in a different token, all of them having the initial token as an
+ancestor. While, with the PCC, once one or more matches follow from the initial token, a single descendant token is
+produced. The syntax is `+{cond1, cond2...}`.

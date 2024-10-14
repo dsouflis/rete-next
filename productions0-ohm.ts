@@ -11,7 +11,7 @@ PlainCypherCondition = CypherNode CypherRelationship*
 
 Production = "(" Condition+ "->" prodName ")"
 
-Condition = MatchCondition | CypherCondition | NotCondition | AggregateCondition
+Condition = MatchCondition | CypherCondition | NotCondition | YesCondition | AggregateCondition
 
 CypherCondition = "cypher" "{" CypherNode CypherRelationship* "}"
 
@@ -82,6 +82,8 @@ MatchOrOp =  OpExpr | varSpecifier | constSpecifier
 OpExpr = MathExpr op MathExpr
 
 NotCondition = "-" "{" Condition+ "}"
+
+YesCondition = "+" "{" Condition+ "}"
 
 prodName = "\\"" (alnum|" ")+ "\\""
 

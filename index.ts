@@ -458,6 +458,16 @@ class TokenTest implements AbstractTestAtJoinNode {
   }
 }
 
+class ExistTest implements AbstractTestAtJoinNode {
+  test(t: Token | null, w: WME): boolean {
+    return w.fields[0] === '1';
+  }
+
+  toString() {
+    return '(exist-test)';
+  }
+}
+
 // pg 22
 export class Token {
   parent: Token | null; // items [0..i-1]
@@ -1439,6 +1449,18 @@ export class NegativeCondition {
   }
 }
 
+export class PositiveCondition {
+  positiveConditions: GenericCondition[] = [];
+
+  constructor(positiveConditions: GenericCondition[]) {
+    this.positiveConditions = positiveConditions;
+  }
+
+  toString(): string {
+    return '+{' + this.positiveConditions.map(c => c.toString()).join(',') + '}';
+  }
+}
+
 export abstract class AggregateComputation<T> {
   locationInToken: LocationsOfVariablesInConditions = {};
   abstract variables(): string[];
@@ -1468,7 +1490,29 @@ export class AggregateCount extends AggregateComputation<number> {
   }
 
   toString(): string {
-    return '#COUNT';
+    return '#COUNT()';
+  }
+}
+
+export class AggregateExist extends AggregateComputation<number> {
+  init() {
+    return 0;
+  }
+
+  mapper(map: StringToStringMap): any {
+    return 1;
+  }
+
+  reducer(v1: any, v2: any): any {
+    return 1;
+  }
+
+  variables(): string[] {
+    return [];
+  }
+
+  toString(): string {
+    return '#EXIST()';
   }
 }
 
@@ -1790,6 +1834,32 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       currentBeta = betaMemory;
       currentJoin = new JoinNode(dummyAlphaMemory, betaMemory);
       currentJoin.tests.push(new TokenTest());
+      dummyAlphaMemory.successors = [currentJoin];
+      betaMemory.children.push(currentJoin)
+      r.joinnodes.push(currentJoin);
+      update_new_node_with_matches_from_above(betaMemory);
+      update_new_node_with_matches_from_above(aggregateNode);
+    } else if(cond instanceof PositiveCondition) {
+      const branchConds = [...earlierConds];
+      const j: JoinNode = build_networks_for_conditions(cond.positiveConditions, r, branchConds, currentJoin);
+      const dummyAlphaMemory = new AlphaMemory(new NeverTestNode());
+      const aggregateComputation = new AggregateExist();
+      const allConditionsForAggregate = [...earlierConds, ...cond.positiveConditions];
+      const locationInToken = getLocationsOfVariablesInConditions(aggregateComputation.variables(), allConditionsForAggregate);
+      aggregateComputation.locationInToken = locationInToken;
+      const aggregateNode = new AggregateNode(j, cond.positiveConditions.length, aggregateComputation, dummyAlphaMemory);
+      j.children.push(aggregateNode);
+      const betaMemory = new BetaMemory(currentJoin!);
+      currentJoin!.children = [betaMemory, ...currentJoin!.children]; //Always first
+      if(Rete.debug) console.log(`added aggregate node for positive condition: %${aggregateNode}`);
+
+      if(Rete.debug) console.log(`added β-memory for aggregate node for positive condition: %${betaMemory}`);
+      //Continue underneath
+      currentBeta = betaMemory;
+      currentJoin = new JoinNode(dummyAlphaMemory, betaMemory);
+      //todo add test wme[0] = 0
+      currentJoin.tests.push(new TokenTest());
+      currentJoin.tests.push(new ExistTest());
       dummyAlphaMemory.successors = [currentJoin];
       betaMemory.children.push(currentJoin)
       r.joinnodes.push(currentJoin);

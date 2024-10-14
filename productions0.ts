@@ -16,7 +16,7 @@ import {
   GenericCondition,
   getLocationsOfVariablesInConditions,
   isCompOp,
-  NegativeCondition,
+  NegativeCondition, PositiveCondition,
 } from "./index";
 import {production0GrammarContents} from "./productions0-ohm";
 import {strict} from "assert";
@@ -40,7 +40,7 @@ let cypherAnonymousVarCounter = 0;
 function condsSpecsToConditions(condsSpecs: any) {
   const lhs: GenericCondition[] = [];
   for (const condsSpec of condsSpecs) {
-    if (condsSpec instanceof Condition || condsSpec instanceof NegativeCondition) {
+    if (condsSpec instanceof Condition || condsSpec instanceof NegativeCondition || condsSpec instanceof PositiveCondition) {
       lhs.push(condsSpec as Condition);
     } else if (condsSpec instanceof MultipleConditions) {
       for (const cond of condsSpec.conds) {
@@ -511,6 +511,12 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
   NotCondition(notNode: Node, lBrace: Node, condsNode: Node, rBrace: Node) {
     const conds = condsNode.toSpecs();
     return new NegativeCondition(conds);
+  },
+
+  //YesCondition = "+" "{" Condition+ "}"
+  YesCondition(yesNode: Node, lBrace: Node, condsNode: Node, rBrace: Node) {
+    const conds = condsNode.toSpecs();
+    return new PositiveCondition(conds);
   },
 
   //prodName = "\"" (alnum|" ")+ "\""
