@@ -34,7 +34,20 @@ For working with fuzzy sets, the concept of a Fuzzy Variable has been added. See
 
 ### NCCs (Negated Conjunctive Conditions)
 An implementation of negated conjunctive conditions has been added, based on the ideas in the Doorenbos thesis. 
-It was reimplemented to work with re-match based removals. The syntax is `-{cond1, cond2...}`.
+It was reimplemented to work with re-match based removals. The syntax is `-{cond1, cond2...}`. It is 
+implemented using two coordinated classes, `NccNode` and `NccPartnerNode`, both deriving from `BetaMemory`.
+The token was extended to hold two fields.
+
+```typescript
+  owner: Token | null = null;
+  nccResults: Token[] | null = null;
+```
+
+The `NccPartnerNode` groups and keeps tokens that have the same token, as the one entering the
+`NccNode`, as an ancestor. The `NccNode` releases its tokens only so long as the `NccPartnerNode`
+does not have any "negative" tokens for it. This is depicted in the followin image.
+
+![NCC](./drawio/NCC.png)
 
 ### "Truth Maintenance"
 A TMS is a separate module from the matcher, but a simple implementation  of what it entails for WME additions 
@@ -86,4 +99,5 @@ The counterpart to Negative Conjunctive Conditions, Positive Conjunctive Conditi
 conditions can match the knowledge base. The difference between listing them after the preceding conditions is that,
 in that case, each distinct match results in a different token, all of them having the initial token as an
 ancestor. While, with the PCC, once one or more matches follow from the initial token, a single descendant token is
-produced. The syntax is `+{cond1, cond2...}`.
+produced. The syntax is `+{cond1, cond2...}`. It is implemented using a special `AggregateComputation`
+class, `AggregateExist`, together with a special join test, `ExistTest`.
