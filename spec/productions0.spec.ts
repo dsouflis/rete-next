@@ -17,7 +17,7 @@ describe('The Productions0 parser', () => {
 
   it('can parse Cypher conditions', () => {
     // const input = `(cypher {(grandparent:Person)-[:parent_of]->(:Person)-[:parent_of]->(grandchild:Person)} -> "prod1")`;
-    const input = `(cypher {(:King {name: "Henry", age: 30})<--(k:Person&Author&Fisherman where k.age < 30)-[r:left_of {position:"prominent"} where r.distance > 10]->(:Person) } cypher{()-->(:Person)} -> "prod1")`;
+    const input = `(cypher {(:King {name: "Henry IV", age: 30})<--(k:Person&Author&Fisherman where k.age < 30)-[r:left_of {position:"prominent"} where r.distance > 10]->(:Person) } cypher{()-->(:Person)} -> "prod1")`;
     // const input = `(cypher {(n:a_person&journalist)-->(:king)} -> "prod1")`;
     const reteParse = parseRete(input);
     expect('specs' in reteParse && reteParse.specs).to.exist;
@@ -276,17 +276,17 @@ describe('The Productions0 parser', () => {
     console.log("====can parse Cypher queries and run them on a Rete:====\n");
 
     const input = `
-    match (x)-[:on]->(y)-[:on]->(z) return x, z
-    match (x)-[:on]->(y) return x
+    match (x)-[:on]->(y)-[:on]->(z) return x.age, z
+    Match (x)-[:on]->(y) Return x
     `;
     const reteParse = parseRete(input);
-    console.log(reteParse);
     expect('specs' in reteParse && reteParse.specs).to.exist;
 
     console.log("running query\n");
     const rete = new Rete();
     const parsed = reteParse as ParseSuccess;
 
+    rete.add("B1", "age", "66");
     rete.add("B1", "on", "B2");
     rete.add("B2", "on", "B3");
 

@@ -16,7 +16,8 @@ import {
   GenericCondition,
   getLocationsOfVariablesInConditions,
   isCompOp,
-  NegativeCondition, PositiveCondition,
+  NegativeCondition,
+  PositiveCondition,
 } from "./index";
 import {production0GrammarContents} from "./productions0-ohm";
 import {strict} from "assert";
@@ -202,17 +203,49 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     } as ProductionSpec;
   },
 
-  // CypherQuery = "match" PlainCypherCondition "return" cypherVariable ("," cypherVariable)+
+  // CypherQuery = "match" PlainCypherCondition "return" ReturnVariable ("," ReturnVariable)*
   CypherQuery(matchNode: Node, condNode: Node, returnNode: Node, varNode: Node, commasOpt: Node, varsOpt: Node) {
     const condsSpecs = condNode.toSpecs();
     const lhs = condsSpecsToConditions([condsSpecs]);
     const varSpec = varNode.toSpecs();
     const varSpecs = varsOpt.toSpecs();
     const variables = [varSpec, ...varSpecs];
+    for (let i = 0; i < variables.length; i++){
+      const variable = variables[i];
+      if(typeof variable === 'object') {
+        const qualifiedProperty = variable as QualifiedProperty;
+        const foundCondition: Condition | null = lhs
+          .filter(c => (c instanceof Condition))
+          .find((c: Condition) => c.attrs[0].type === FieldType.Var &&
+            c.attrs[0].v === qualifiedProperty.variable &&
+            c.attrs[1].type === FieldType.Const &&
+            c.attrs[1].v === qualifiedProperty.property &&
+            c.attrs[2].type === FieldType.Var
+      ) as Condition | null;
+        if(foundCondition) {
+          variables[i] = foundCondition.attrs[2].v;
+        } else {
+          const newVar = newCypherVar();
+          const condition = new Condition(
+            Field.var(qualifiedProperty.variable),
+            Field.constant(qualifiedProperty.property),
+            Field.var(newVar),
+          );
+          lhs.push(condition);
+          variables[i] = newVar;
+        }
+      }
+    }
     return {
       lhs,
       variables,
     } as ProductionSpec;
+  },
+
+  //ReturnVariable =  QualifiedProperty | cypherVariable
+  ReturnVariable(altNode: Node) {
+    const altSpecs = altNode.toSpecs();
+    return altSpecs;
   },
 
   //Production = "(" Condition+ "->" prodName ")"
@@ -519,9 +552,9 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     return new PositiveCondition(conds);
   },
 
-  //prodName = "\"" (alnum|" ")+ "\""
-  prodName(lQuote: Node, lettersNode: Node, rQuote: Node): string {
-    const letters = lettersNode.toSpecs();
+  //prodName = quotedConst
+  prodName(quotedNode: Node): string {
+    const letters = quotedNode.toSpecs();
     const n = letters.join('');
     return n;
   },

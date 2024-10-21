@@ -5,7 +5,9 @@ ProductionItem = Production | Query | CypherQuery
 
 Query = "(" Condition+ "->" (varSpecifier ("," varSpecifier)+ )? ")"
 
-CypherQuery = ("match"|"MATCH") PlainCypherCondition ("return"|"RETURN") cypherVariable ("," cypherVariable)*
+CypherQuery = match PlainCypherCondition return  ReturnVariable ("," ReturnVariable)*
+
+ReturnVariable =  QualifiedProperty | cypherVariable
 
 PlainCypherCondition = CypherNode CypherRelationship*
 
@@ -13,7 +15,7 @@ Production = "(" Condition+ "->" prodName ")"
 
 Condition = MatchCondition | CypherCondition | NotCondition | YesCondition | AggregateCondition
 
-CypherCondition = "cypher" "{" CypherNode CypherRelationship* "}"
+CypherCondition = cypher "{" CypherNode CypherRelationship* "}"
 
 CypherNode = "(" cypherVariable? LabelExpression? PropertyKeyValueExpression? PropertyWhereExpression? ")"
 
@@ -23,9 +25,9 @@ PropertyKeyValuePairList =  ("," PropertyKeyValuePair)+
 
 PropertyKeyValuePair = cypherVariable ":" constSpecifier
 
-PropertyWhereExpression = "where" NodePropertyComparisonList
+PropertyWhereExpression = where NodePropertyComparisonList
 
-NodePropertyComparisonList = NodePropertyComparison ("and" NodePropertyComparisonList)*
+NodePropertyComparisonList = NodePropertyComparison (and NodePropertyComparisonList)*
 
 NodePropertyComparison = QualifiedProperty comp constSpecifier
 
@@ -55,9 +57,9 @@ PatternFiller =  cypherVariable? LabelExpression? PropertyKeyValueExpression? Pr
 
 abbreviatedRelationship = "<--" | "-->"
 
-MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")" ("as" varSpecifier)?
+MatchCondition = "(" MatchSpecifier MatchSpecifier MatchSpecifier ")" (as varSpecifier)?
 
-AggregateCondition = "(" varSpecifier "<-" AggrSpecifier ")" "from"  "{" Condition+ "}"
+AggregateCondition = "(" varSpecifier "<-" AggrSpecifier ")" from  "{" Condition+ "}"
 
 MatchSpecifier = varSpecifier | constSpecifier | Expr
 
@@ -69,7 +71,11 @@ op = "+" | "-" | "*" | "/"
 
 constSpecifier = (alnum | "-" | "_")+ | quotedConst | comp
 
-quotedConst = "\\"" (alnum | space | "-" | "_")+ "\\""
+delimiter1 =  "\\""
+
+delimiter2 =  "'"
+
+quotedConst = (delimiter1 (~delimiter1 any)* delimiter1) | (delimiter2 (~delimiter2 any)* delimiter2)
 
 comp = "=" | "<>" | ">" | ">=" | "<" | "<="
 
@@ -85,7 +91,41 @@ NotCondition = "-" "{" Condition+ "}"
 
 YesCondition = "+" "{" Condition+ "}"
 
-prodName = "\\"" (alnum|" ")+ "\\""
+prodName = quotedConst
 
+ a = "a" | "A"
+ b = "b" | "B"
+ c = "c" | "C"
+ d = "d" | "D"
+ e = "e" | "E"
+ f = "f" | "F"
+ g = "g" | "G"
+ h = "h" | "H"
+ i = "i" | "I"
+ j = "j" | "J"
+ k = "k" | "K"
+ l = "l" | "L"
+ m = "m" | "M"
+ n = "n" | "N"
+ o = "o" | "O"
+ p = "p" | "P"
+ q = "q" | "Q"
+ r = "r" | "R"
+ s = "s" | "S"
+ t = "t" | "T"
+ u = "u" | "U"
+ v = "v" | "V"
+ w = "w" | "W"
+ x = "x" | "X"
+ y = "y" | "Y"
+ z = "z" | "Z"
+ 
+ match = m a t c h
+ return = r e t u r n
+ cypher = c y p h e r
+ where = w h e r e
+ and = a n d
+ as = a s
+ from = f r o m
 }
 `;

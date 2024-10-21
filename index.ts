@@ -571,10 +571,11 @@ class BetaMemory extends Identifiable{
         child.beta_activation(fullToken, add);
       }
     } else {
-      const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
-      // strict.strict(toRemove.length === 1); //todo
-      if(toRemove.length === 0) return; //todo
-      fullToken = toRemove[0];
+      const fullToken = this.items.find(t1 => tokenIsParentAndWME(t1, t, w));
+      if(!fullToken) {
+        console.error(`beta-memory #${this.id}: Did not find token with WME=${w.toString()} and parent=${t?.toString()}`);
+        return;
+      }
       for (let child of this.children) {
         child.beta_activation(fullToken, add);
       }
@@ -798,10 +799,11 @@ export class NccNode extends BetaMemory {
         }
       }
     } else {
-      const toRemove = this.items.filter(t1 => tokenIsParentAndWME(t1, t, w));
-      //strict.strict(toRemove.length === 1); //todo
-      if(toRemove.length === 0) return; //todo
-      fullToken = toRemove[0];
+      const fullToken = this.items.find(t1 => tokenIsParentAndWME(t1, t, w));
+      if(!fullToken) {
+        console.error(`ncc-node #${this.id}: Did not find token with WME=${w.toString()} and parent=${t?.toString()}`);
+        return;
+      }
       for (let child of this.children) {
         child.beta_activation(fullToken, add);
       }
@@ -844,7 +846,7 @@ export class NccPartnerNode extends BetaMemory {
       } else {
         this.items = [fullToken, ...this.items];
       }
-    } else { //todo
+    } else {
       const foundHere = this.items.find(t1 => tokenIsParentAndWME(t1, t, w));
       if (foundHere) {
         fullToken = foundHere;
@@ -1271,9 +1273,16 @@ export class Field {
 }
 
 export function quoteIfNeeded(s: string): string {
-  if(s.split('')
-    .find(c => [' ', '\t', '\r', '\n'].includes(c))) {
-    return `'${s}'`;
+  const letters = s.split('');
+  if(letters
+    .find(c => [' ', '\t', '\r', '\n', "'", '"'].includes(c))) {
+    if(!letters.find(c => c === "'")) {
+      return `'${s}'`;
+    } else if(!letters.find(c => c === '"')) {
+      return `""${s}"`;
+    } else {
+      strict.strict(false, "Cannot quote with either single of double quotes")
+    }
   }
   return s;
 }
@@ -1857,7 +1866,6 @@ function build_networks_for_conditions(lhs: GenericCondition[], r: Rete, earlier
       //Continue underneath
       currentBeta = betaMemory;
       currentJoin = new JoinNode(dummyAlphaMemory, betaMemory);
-      //todo add test wme[0] = 0
       currentJoin.tests.push(new TokenTest());
       currentJoin.tests.push(new ExistTest());
       dummyAlphaMemory.successors = [currentJoin];
