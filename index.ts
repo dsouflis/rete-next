@@ -1048,7 +1048,81 @@ export class Rete {
     return fuzzySystem.isFuzzyValue(fuzzyValue);
   }
 
+  addWMEsFromConditions(conds: GenericCondition[]) {
+    add_wmes_from_conditions(this, conds);
+  }
+
   static debug: boolean = false;
+}
+
+function add_wmes_from_conditions(r: Rete, conds: GenericCondition[]) {
+  //Find all "as" variables
+  const condVars: {[variable: string] : Condition} = {};
+  for (const cond of conds) {
+    strict.strict(
+      !(cond instanceof NegativeCondition) && !(cond instanceof AggregateCondition),
+      'Only plain Conditions are allowed'
+    );
+
+    if(cond instanceof Condition && cond.wholeWmeVar) {
+      condVars[cond.wholeWmeVar] = cond;
+    }
+  }
+  const plainConditions = conds as Condition[];
+
+  //replace internal variables with fresh symbols
+  const generatedSymbols: {[variable: string]: string} = {};
+  for (const cond of plainConditions) {
+    for (const attr of cond.attrs) {
+      if(attr.type === FieldType.Var && !(attr.v in condVars)) {
+        if (!generatedSymbols[attr.v]) {
+          generatedSymbols[attr.v] = `gensym-${idCounter++}`;
+        }
+        attr.type = FieldType.Const;
+        attr.v = generatedSymbols[attr.v];
+      }
+    }
+  }
+  //only "as" variables are left, at this point
+  //TODO Order conditions so that those with "as" come before those that use the variables (error if cycle exists)
+  const conditionsPerDepth: {[n: number]: Condition[]} = {};
+  const orderedConditionsByDepth: Condition[] = [];
+  function findConditionsOfDepth(n: number) {
+    if(n === 0) {
+      return plainConditions.filter(c => c.wholeWmeVar && c.attrs.every(f => f.type === FieldType.Const));
+    } else {
+      return plainConditions.filter(c => !orderedConditionsByDepth.includes(c) && c.attrs.some(f => f.type === FieldType.Var) &&
+        c.attrs.filter(f => f.type === FieldType.Var).every(f => orderedConditionsByDepth.includes(condVars[f.v])));
+    }
+  }
+  let targetDepth = 0;
+  do {
+    const conditionsOfDepth = findConditionsOfDepth(targetDepth);
+    if(!conditionsOfDepth.length) break;
+    conditionsPerDepth[targetDepth] = conditionsOfDepth;
+    orderedConditionsByDepth.push(...conditionsOfDepth);
+    targetDepth++;
+  } while(targetDepth < conds.length); //just in case
+  //add WMEs one by one, replacing "as" variables of previous facts
+  const remainingConditions = plainConditions.filter(c => !orderedConditionsByDepth.includes(c));
+  const wmeVars: {[variable: string] : WME | null} = Object.fromEntries(Object.entries(condVars).map(([v,_]) => [v, null]));
+  for (const cond of [...orderedConditionsByDepth, ...remainingConditions]) {
+    const values: any[] = [];
+    for (const attr of cond.attrs) {
+      if(attr.type === FieldType.Var) {
+        const wme = wmeVars[attr.v];
+        //if unresolved variables remain, then this means there's a cycle
+        strict.strict(wme, 'Variable not resolved');
+        values.push(wme);
+      } else {
+        values.push(attr.v);
+      }
+    }
+    const added = r.add(values[0], values[1], values[2]);
+    if(cond.wholeWmeVar) {
+      wmeVars[cond.wholeWmeVar] = added;
+    }
+  }
 }
 
 function wme_to_condition(w: WME): Condition {

@@ -38,7 +38,7 @@ function createAggregateComputation(name: string, expr: ConditionArithVar | null
 
 let cypherAnonymousVarCounter = 0;
 
-function condsSpecsToConditions(condsSpecs: any) {
+function condsSpecsToConditions(condsSpecs: any): GenericCondition[] {
   const lhs: GenericCondition[] = [];
   for (const condsSpec of condsSpecs) {
     if (condsSpec instanceof Condition || condsSpec instanceof NegativeCondition || condsSpec instanceof PositiveCondition) {
@@ -61,6 +61,23 @@ function condsSpecsToConditions(condsSpecs: any) {
     }
   }
   return lhs;
+}
+
+function checkConditionsStandingInForFacts(conds: GenericCondition[]) {
+  for (const condsSpec of conds) {
+    strict.strict(
+      !(condsSpec instanceof NegativeCondition) && !(condsSpec instanceof PositiveCondition) && !(condsSpec instanceof AggregateCondition),
+      'Negative/Positive/Aggregate grammar not allowed for assertions'
+    );
+    if (condsSpec instanceof MultipleConditions) {
+      checkConditionsStandingInForFacts(condsSpec.conds);
+    } else if(condsSpec instanceof Condition) {
+      strict.strict(
+      !condsSpec.intraArithTests.length && !condsSpec.extraArithTests.length,
+        'Tests not allowed for assertions'
+      );
+    }
+  }
 }
 
 function newCypherVar() {
@@ -177,7 +194,7 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     return toSpecs;
   },
 
-  //ProductionItem = Production | Query | CypherQuery
+  //ProductionItem = Production | Query | CypherQuery | CypherCreate
   ProductionItem(altNode: Node) {
     const toSpecs = altNode.toSpecs();
     return toSpecs;
@@ -240,6 +257,34 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
       lhs,
       variables,
     } as ProductionSpec;
+  },
+
+  //CypherCreate = create PlainCypherCondition MoreConditions
+  CypherCreate(createNode: Node, condNode: Node, moreNode: Node) {
+    const condSpecs: MultipleConditions = condNode.toSpecs();
+    const moreSpecs: MultipleConditions[] = moreNode.toSpecs();
+    const combined = moreSpecs.reduce(MultipleConditions.concatWith, condSpecs);
+    const lhs = condsSpecsToConditions([combined]);
+    checkConditionsStandingInForFacts(lhs);
+    return {
+      lhs,
+    } as ProductionSpec;
+  },
+
+  //Assert = "(" "!" Condition+ ")"
+  Assert(lparenNode: Node, bangNode: Node, condNode: Node, rparenNode: Node) {
+    const condSpecs: Condition[] = condNode.toSpecs();
+    const lhs = condsSpecsToConditions(condSpecs);
+    checkConditionsStandingInForFacts(lhs);
+    return {
+      lhs,
+    } as ProductionSpec;
+  },
+
+  //MoreConditions = ("," PlainCypherCondition)*
+  MoreConditions(commas: Node, condsNode: Node) {
+    const condsSpecs = condsNode.toSpecs();
+    return condsSpecs;
   },
 
   //ReturnVariable =  QualifiedProperty | cypherVariable
@@ -606,6 +651,10 @@ export class MultipleConditions {
   constructor(conds: GenericCondition[]) {
     this.conds = conds;
   }
+
+  static concatWith(one: MultipleConditions, other: MultipleConditions): MultipleConditions {
+    return new MultipleConditions([...one.conds, ...other.conds]);
+  }
 }
 
 interface PropertyKeyValuePair {
@@ -624,6 +673,9 @@ interface NodePropertyComp {
 
 }
 
+// lhs & variables => Query, CypherQuery
+// lhs & rhs => Production
+// lhs => CypherCreate
 export interface ProductionSpec {
   lhs: GenericCondition[],
   rhs?: string,
@@ -639,17 +691,23 @@ export interface ParseSuccess {
 }
 
 export function parseRete(input: string): ParseError | ParseSuccess {
-  let matchResult = g.match(input);
+  try {
+    let matchResult = g.match(input);
 
-  if (matchResult.failed()) {
+    if (matchResult.failed()) {
+      return ({
+        error: matchResult.message
+      });
+    } else {
+      let dict = semantics(matchResult);
+      const specs = dict['toSpecs'].apply(dict) as ProductionSpec[]; // const specs = dict.toSpecs();
+      return ({
+        specs,
+      });
+    }
+  } catch (e) {
     return ({
-      error: matchResult.message
-    });
-  } else {
-    let dict = semantics(matchResult);
-    const specs = dict['toSpecs'].apply(dict) as ProductionSpec[]; // const specs = dict.toSpecs();
-    return ({
-      specs,
+      error: e.message
     });
   }
 }

@@ -93,7 +93,6 @@ test, the operation looks like this:
       rete.add(wme, 'date', '2024-09-30');
 ```
 
-
 ### Positive Conjunctive Conditions
 The counterpart to Negative Conjunctive Conditions, Positive Conjunctive Conditions are true when the constituent
 conditions can match the knowledge base. The difference between listing them after the preceding conditions is that,
@@ -101,3 +100,64 @@ in that case, each distinct match results in a different token, all of them havi
 ancestor. While, with the PCC, once one or more matches follow from the initial token, a single descendant token is
 produced. The syntax is `+{cond1, cond2...}`. It is implemented using a special `AggregateComputation`
 class, `AggregateExist`, together with a special join test, `ExistTest`.
+
+### Fact assertions
+Two syntaxes were added to the grammar, both producing constrained Condition objects that are used to encode WMEs.
+
+#### Native syntax
+The native syntax is as follows:
+```
+(! (foo is-a Person)
+   (foo SubjectOf bar)
+   (bar is-a King)
+   (foo TaughtBy mrjones) as <_11>
+   (<_11> level primary)
+   (mrjones is-a Teacher)
+)
+```
+
+Method `addWMEsFromConditions` adds these Conditions, translating them to WMEs and resolving WME variables. Read the 
+following paragraph to learn about other variables that can be used in this syntax.
+
+The clause above results in the following WMEs added:
+
+```
+(foo TaughtBy mrjones)
+((foo TaughtBy mrjones) level primary)
+(foo is-a Person)
+(foo SubjectOf bar)
+(bar is-a King)
+(mrjones is-a Teacher)
+```
+
+#### Cypher INSERT
+A Cypher INSERT clause reads as follows:
+
+```
+create (n:Person )-[:SubjectOf]->(:King), (n)<-[:TaughtBy {level: "primary"}]-(:Teacher)
+```
+
+This syntax is parsed as if it were the following native syntax:
+
+```
+(! (<n> is-a Person)
+   (<n> SubjectOf <_9>)
+   (<_9> is-a King)
+   (<n> TaughtBy <_10>) as <_11>
+   (<_11> level primary)
+   (<_10> is-a Teacher)
+)
+```
+
+The variables that you see that are not WME variables, are substituted by fresh symbols of the form `gensym-NNNN`.
+
+The clause above results in the following WMEs being added (gensym numbers are arbitrary):
+
+```
+(gensym-239 TaughtBy gensym-241)
+((gensym-239 TaughtBy gensym-241) level primary)
+(gensym-239 is-a Person)
+(gensym-239 SubjectOf gensym-240)
+(gensym-240 is-a King)
+(gensym-241 is-a Teacher)
+```

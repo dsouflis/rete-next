@@ -1,11 +1,17 @@
 export const production0GrammarContents = `Productions0 {
 Productions = ProductionItem+
 
-ProductionItem = Production | Query | CypherQuery
+ProductionItem = Production | Query | CypherQuery | Assert | CypherCreate
 
 Query = "(" Condition+ "->" (varSpecifier ("," varSpecifier)+ )? ")"
 
+Assert = "(" "!" Condition+ ")"
+
 CypherQuery = match PlainCypherCondition return  ReturnVariable ("," ReturnVariable)*
+
+CypherCreate = create PlainCypherCondition MoreConditions
+
+MoreConditions = ("," PlainCypherCondition)*
 
 ReturnVariable =  QualifiedProperty | cypherVariable
 
@@ -79,7 +85,7 @@ quotedConst = (delimiter1 (~delimiter1 any)* delimiter1) | (delimiter2 (~delimit
 
 comp = "=" | "<>" | ">" | ">=" | "<" | "<="
 
-varSpecifier = "<" alnum+ ">"
+varSpecifier = "<" (alnum | "_")+ ">"
 
 AggrSpecifier =  "#" (alnum)+ "(" MatchOrOp? ")"
 
@@ -127,5 +133,6 @@ prodName = quotedConst
  and = a n d
  as = a s
  from = f r o m
+ create = c r e a t e
 }
 `;

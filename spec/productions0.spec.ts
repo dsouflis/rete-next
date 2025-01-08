@@ -1,13 +1,13 @@
 import {expect} from 'chai';
 import {describe} from "mocha";
 import {parseRete, ParseSuccess} from '../productions0';
-import {AggregateCondition, AggregateSum, Condition, Field, Rete, WME} from "../index";
+import {Rete, WME} from "../index";
 
 describe('The Productions0 parser', () => {
   it('can parse the whole of the grammar', () => {
     const input = `( (<x> on <y>) (<y> > (3 + <x>)) -{ (<y> left-of <z>)} (<w> <- #sum(<w>)) from {(<y> on <w>)} -> "prod 1")`;
     const reteParse = parseRete(input);
-    expect('specs' in reteParse && reteParse.specs).to.exist;
+    expect('specs' in reteParse && reteParse.specs).to.ok;
     if('specs' in reteParse) {
       reteParse.specs.forEach(({lhs, rhs}) => {
         console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', rhs);
@@ -20,7 +20,7 @@ describe('The Productions0 parser', () => {
     const input = `(cypher {(:King {name: "Henry IV", age: 30})<--(k:Person&Author&Fisherman where k.age < 30)-[r:left_of {position:"prominent"} where r.distance > 10]->(:Person) } cypher{()-->(:Person)} -> "prod1")`;
     // const input = `(cypher {(n:a_person&journalist)-->(:king)} -> "prod1")`;
     const reteParse = parseRete(input);
-    expect('specs' in reteParse && reteParse.specs).to.exist;
+    expect('specs' in reteParse && reteParse.specs).to.ok;
     if('specs' in reteParse) {
       reteParse.specs.forEach(({lhs, rhs}) => {
         console.log('Added production ' + lhs.map(c => c.toString()) + ' ⇒ ', rhs);
@@ -31,7 +31,7 @@ describe('The Productions0 parser', () => {
   it('can parse conditions for reified relations', () => {
     const input = `( (<x> rel <y>) as <r> (<r> date <d>) -> "prod1")`;
     const reteParse = parseRete(input);
-    expect('specs' in reteParse && reteParse.specs).to.exist;
+    expect('specs' in reteParse && reteParse.specs).to.ok;
     if('specs' in reteParse) {
       const rete = new Rete();
       reteParse.specs.forEach(({lhs, rhs}) => {
@@ -56,7 +56,7 @@ describe('The Productions0 parser', () => {
     const input = `( (<x> on <y>) -> "prod1")`;
     const reteParse = parseRete(input);
     console.log(reteParse);
-    expect('specs' in reteParse && reteParse.specs).to.exist;
+    expect('specs' in reteParse && reteParse.specs).to.ok;
 
     console.log("adding production\n");
     const rete = new Rete();
@@ -87,7 +87,7 @@ describe('The Productions0 parser', () => {
     const input = `( (<x> weight <y>) (<y> < 50) -> "prod1")`;
     const reteParse = parseRete(input);
     console.log(reteParse);
-    expect('specs' in reteParse && reteParse.specs).to.exist;
+    expect('specs' in reteParse && reteParse.specs).to.ok;
 
     console.log("adding production\n");
     const rete = new Rete();
@@ -118,7 +118,7 @@ describe('The Productions0 parser', () => {
     const input = `( (<x> on <y>) -{(<z> on <x>)} -> "prod1")`;
     const reteParse = parseRete(input);
     console.log(reteParse);
-    expect('specs' in reteParse && reteParse.specs).to.exist;
+    expect('specs' in reteParse && reteParse.specs).to.ok;
 
     console.log("adding production\n");
     const rete = new Rete();
@@ -171,7 +171,7 @@ describe('The Productions0 parser', () => {
     const input = `( (<x> on <y>) +{(<z> on <x>)} -> "prod1")`;
     const reteParse = parseRete(input);
     console.log(reteParse);
-    expect('specs' in reteParse && reteParse.specs).to.exist;
+    expect('specs' in reteParse && reteParse.specs).to.ok;
 
     console.log("adding production\n");
     const rete = new Rete();
@@ -215,7 +215,7 @@ describe('The Productions0 parser', () => {
     const input = `( (<x> on <y>) (<cn> <- #sum(<c>)) from {(<y> order <c>)} -> "prod1")`;
     const reteParse = parseRete(input);
     console.log(reteParse);
-    expect('specs' in reteParse && reteParse.specs).to.exist;
+    expect('specs' in reteParse && reteParse.specs).to.ok;
 
     console.log("adding production\n");
     const rete = new Rete();
@@ -254,7 +254,7 @@ describe('The Productions0 parser', () => {
     const input = `((<x> on <y>) (<y> on <z>) -> <x>,<z>) ((<x> on <y>) -> <x>,<y>)`;
     const reteParse = parseRete(input);
     console.log(reteParse);
-    expect('specs' in reteParse && reteParse.specs).to.exist;
+    expect('specs' in reteParse && reteParse.specs).to.ok;
 
     console.log("running query\n");
     const rete = new Rete();
@@ -280,7 +280,7 @@ describe('The Productions0 parser', () => {
     Match (x)-[:on]->(y) Return x
     `;
     const reteParse = parseRete(input);
-    expect('specs' in reteParse && reteParse.specs).to.exist;
+    expect('specs' in reteParse && reteParse.specs).to.ok;
 
     console.log("running query\n");
     const rete = new Rete();
@@ -297,5 +297,73 @@ describe('The Productions0 parser', () => {
     }
 
     console.log("====\n");
+  });
+
+  it('can parse CREATE clauses', () => {
+    console.log('can parse CREATE clauses');
+    const input = `create (n:Person )-[:SubjectOf]->(:King), (n)<-[:TaughtBy {level: "primary"}]-(:Teacher)`;
+    const reteParse = parseRete(input);
+    expect('specs' in reteParse && reteParse.specs).to.ok;
+
+    const rete = new Rete();
+    const parsed = reteParse as ParseSuccess;
+    console.log('Read:');
+    for (const {lhs} of parsed.specs) {
+      for(const cond of lhs) {
+        console.log(cond.toString());
+      }
+      rete.addWMEsFromConditions(lhs);
+    }
+
+    expect(rete.working_memory.length).to.equal(6);
+    console.log('Added:');
+    for (const wme of rete.working_memory) {
+      console.log(wme.toString());
+    }
+  });
+
+  it('can parse assert clauses', () => {
+    console.log('can parse assert clauses');
+    const input = `(!
+(foo is-a Person)
+(foo SubjectOf bar)
+(bar is-a King)
+(foo TaughtBy mrjones) as <_11>
+(<_11> level primary)
+(mrjones is-a Teacher)
+)
+`;
+    const reteParse = parseRete(input);
+    expect('specs' in reteParse && reteParse.specs).to.ok;
+
+    const rete = new Rete();
+    const parsed = reteParse as ParseSuccess;
+    console.log('Read:');
+    for (const {lhs} of parsed.specs) {
+      for(const cond of lhs) {
+        console.log(cond.toString());
+      }
+      rete.addWMEsFromConditions(lhs);
+    }
+    expect(rete.working_memory.length).to.equal(6);
+    console.log('Added:');
+    for (const wme of rete.working_memory) {
+      console.log(wme.toString());
+    }
+  });
+
+  it('does not accept forbidden constructs in assert clauses', () => {
+    console.log('does not accept forbidden constructs in assert clauses');
+    const input = `(!
+(<n> is-a Person) (<n> < 10)
+(<n> SubjectOf <_9>)
+-{(<_9> is-a King)}
+(<n> TaughtBy <_10>) as <_11>
+(<_11> level primary)
+(<_10> is-a Teacher)
+)
+`;
+    const reteParse = parseRete(input);
+    expect('error' in reteParse && reteParse.error).to.ok;
   });
 });
