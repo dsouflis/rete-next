@@ -1,7 +1,7 @@
 import {expect} from 'chai';
 import {describe} from "mocha";
 import {parseRete, ParseSuccess} from '../productions0';
-import {Rete, WME} from "../index";
+import {evalVariablesInToken, Rete, WME} from "../index";
 
 describe('The Productions0 parser', () => {
   it('can parse the whole of the grammar', () => {
@@ -365,5 +365,86 @@ describe('The Productions0 parser', () => {
 `;
     const reteParse = parseRete(input);
     expect('error' in reteParse && reteParse.error).to.ok;
+  });
+
+  it('can handle the knowledge graph test', () => {
+    console.log('can handle the knowledge graph test');
+    const createInitialFacts = `(!
+ (Adam father Cain)
+ (Adam father Abel)
+ (Adam father Seth)
+ (Eve mother Cain)
+ (Eve mother Abel)
+ (Eve mother Seth)
+ (Seth father Enosh)
+ (Enosh father Kenan)
+ (Kenan father Mahalalel)
+ (Mahalalel father Jared)
+ (Jared father Enoch)
+ (Enoch father Methuselah)
+ (Methuselah father Lamech)
+ (Lamech father Noah)
+ (Noah father Shem)
+ (Noah father Ham)
+ (Noah father Japheth)
+ (Terah father Abram)
+ (Terah father Nahor)
+ (Terah father Haran)
+ (Haran father Lot)
+ (Abram father Isaac)
+ (Sarah mother Isaac)
+ (Abraham father Ishmael)
+ (Isaac father Esau)
+ (Isaac father Jacob)
+ (Rebekah mother Esau)
+ (Rebekah mother Jacob)
+ (Jacob father Reuben)
+ (Jacob father Judah)
+)    `;
+    const reteParseInitialFacts = parseRete(createInitialFacts);
+    expect('specs' in reteParseInitialFacts && reteParseInitialFacts.specs).to.ok;
+
+    const rete = new Rete();
+    const parsedInitialFacts = reteParseInitialFacts as ParseSuccess;
+    console.log('Read:');
+    for (const {lhs} of parsedInitialFacts.specs) {
+      for(const cond of lhs) {
+        console.log(cond.toString());
+      }
+      rete.addWMEsFromConditions(lhs);
+    }
+    expect(rete.working_memory.length).to.equal(30);
+
+    const inputProduction = `( (<x> father <z>) (<y> mother <z>) -> "find couples with children" (! (<x> husband <y>) ) )`;
+    const reteParseProduction = parseRete(inputProduction);
+    console.log(reteParseProduction);
+    expect('specs' in reteParseProduction && reteParseProduction.specs).to.ok;
+
+    console.log("adding production\n");
+    const parsedProduction = reteParseProduction as ParseSuccess;
+    expect(parsedProduction.specs.length).to.equal(1);
+
+    const {lhs: productionLhs, rhs: productionRhs, rhsAssert} = parsedProduction.specs[0];
+    const p1 = rete.addProduction(productionLhs, productionRhs!);
+    console.log('Added production', productionLhs.map(c => c.toString()).join(','), '⇒', `${p1.rhs}`, rhsAssert?.map(c => c.toString()).join(','));
+
+    const [toAdd, toRemove] = p1.willFire();
+    expect(toAdd.length).to.equal(6);
+    for (const token of toAdd) {
+      expect(token.parent).to.exist;
+      const variablesInToken = evalVariablesInToken(Object.keys(p1.locationsOfAllVariablesInConditions), p1.locationsOfAllVariablesInConditions, token);
+      console.log(variablesInToken);
+      const wmes = rete.addWMEsFromConditions(rhsAssert!, variablesInToken);
+      if (wmes.length) {
+        console.log('Added', wmes.map(w => w.toString()).join(' '));
+      }
+    }
+    const husbandFactsFound = rete.working_memory.filter(w => w.fields[1] === 'husband');
+    expect(husbandFactsFound.length).to.equal(3);
+    console.log('Found', husbandFactsFound.length,'husband facts:');
+    for (const w of husbandFactsFound) {
+      console.log(w.toString());
+    }
+
   });
 });

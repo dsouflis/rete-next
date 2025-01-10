@@ -699,10 +699,12 @@ class JoinNode extends Identifiable {
 export class ProductionNode extends BetaMemory {
   rhs: string;
   oldItems: Token[] = [];
+  locationsOfAllVariablesInConditions: LocationsOfVariablesInConditions;
 
-  constructor(parent: JoinNode, rhs: string) {
+  constructor(parent: JoinNode, rhs: string, locationsOfAllVariablesInConditions: LocationsOfVariablesInConditions) {
     super(parent);
     this.rhs = rhs;
+    this.locationsOfAllVariablesInConditions = locationsOfAllVariablesInConditions;
   }
 
   join_activation(t: Token | null, w: WME, add: boolean) {
@@ -1048,14 +1050,14 @@ export class Rete {
     return fuzzySystem.isFuzzyValue(fuzzyValue);
   }
 
-  addWMEsFromConditions(conds: GenericCondition[]) {
-    add_wmes_from_conditions(this, conds);
+  addWMEsFromConditions(conds: GenericCondition[], variableValues?: StringToStringMap) {
+    return add_wmes_from_conditions(this, conds, variableValues);
   }
 
   static debug: boolean = false;
 }
 
-function add_wmes_from_conditions(r: Rete, conds: GenericCondition[]) {
+function add_wmes_from_conditions(r: Rete, conds: GenericCondition[], variableValues?: StringToStringMap): WME[] {
   //Find all "as" variables
   const condVars: {[variable: string] : Condition} = {};
   for (const cond of conds) {
@@ -1064,11 +1066,35 @@ function add_wmes_from_conditions(r: Rete, conds: GenericCondition[]) {
       'Only plain Conditions are allowed'
     );
 
-    if(cond instanceof Condition && cond.wholeWmeVar) {
+    if(cond.wholeWmeVar) {
+      strict.strict(!variableValues?.[cond.wholeWmeVar],  'Values are not allowed to be provided for WME variables');
       condVars[cond.wholeWmeVar] = cond;
     }
   }
-  const plainConditions = conds as Condition[];
+  const plainConditions = (conds as Condition[])
+    .map(c => {
+      const condition = new Condition(
+        new Field(c.attrs[0].type, c.attrs[0].v),
+        new Field(c.attrs[1].type, c.attrs[1].v),
+        new Field(c.attrs[2].type, c.attrs[2].v)
+      );
+      if(c.wholeWmeVar) {
+        condition.wholeWmeVar = c.wholeWmeVar;
+      }
+      return condition;
+    });
+
+  //plug any given values for variables
+  if (variableValues) {
+    for (const cond of plainConditions) {
+      for (const attr of cond.attrs) {
+        if(attr.type === FieldType.Var && variableValues[attr.v]) {
+          attr.type = FieldType.Const;
+          attr.v = variableValues[attr.v];
+        }
+      }
+    }
+  }
 
   //replace internal variables with fresh symbols
   const generatedSymbols: {[variable: string]: string} = {};
@@ -1084,7 +1110,6 @@ function add_wmes_from_conditions(r: Rete, conds: GenericCondition[]) {
     }
   }
   //only "as" variables are left, at this point
-  //TODO Order conditions so that those with "as" come before those that use the variables (error if cycle exists)
   const conditionsPerDepth: {[n: number]: Condition[]} = {};
   const orderedConditionsByDepth: Condition[] = [];
   function findConditionsOfDepth(n: number) {
@@ -1106,6 +1131,7 @@ function add_wmes_from_conditions(r: Rete, conds: GenericCondition[]) {
   //add WMEs one by one, replacing "as" variables of previous facts
   const remainingConditions = plainConditions.filter(c => !orderedConditionsByDepth.includes(c));
   const wmeVars: {[variable: string] : WME | null} = Object.fromEntries(Object.entries(condVars).map(([v,_]) => [v, null]));
+  const ret: WME[] = [];
   for (const cond of [...orderedConditionsByDepth, ...remainingConditions]) {
     const values: any[] = [];
     for (const attr of cond.attrs) {
@@ -1119,10 +1145,14 @@ function add_wmes_from_conditions(r: Rete, conds: GenericCondition[]) {
       }
     }
     const added = r.add(values[0], values[1], values[2]);
-    if(cond.wholeWmeVar) {
-      wmeVars[cond.wholeWmeVar] = added;
+    if (added) {
+      ret.push(added);
+      if (cond.wholeWmeVar) {
+        wmeVars[cond.wholeWmeVar] = added;
+      }
     }
   }
+  return ret;
 }
 
 function wme_to_condition(w: WME): Condition {
@@ -1972,9 +2002,10 @@ function add_production(r: Rete, lhs: GenericCondition[], rhs: string) {
   // make P (a child of J[k]), the production node
   let earlierConds: Condition[] = [];
   let currentJoin = build_networks_for_conditions(lhs, r, earlierConds);
+  const locationsOfAllVariablesInConditions = getLocationsOfAllVariablesInConditions(lhs);
 
   // build a new production node, make it a child of current node
-  const prod = new ProductionNode(currentJoin!, rhs);
+  const prod = new ProductionNode(currentJoin!, rhs, locationsOfAllVariablesInConditions);
   r.productions.push(prod);
   if(Rete.debug) console.log(`add_production prod: %${prod} | parent: %${prod.parent}\n`);
   currentJoin.children.push(prod);
@@ -1995,6 +2026,22 @@ export function getLocationsOfVariablesInConditions(variables: string[], conds: 
     strict.strict(i != -1, 'Variable not found');
     strict.strict(f2 != -1, 'Variable not found');
     locationInToken[v] = [i, f2];
+  }
+  return locationInToken;
+}
+
+export function getLocationsOfAllVariablesInConditions(conds: GenericCondition[]): LocationsOfVariablesInConditions {
+  const locationInToken: LocationsOfVariablesInConditions = {};
+  for (let i = 0; i < conds.length; i++){
+    const cond = conds[i];
+    if(!(cond instanceof Condition)) continue;
+    //todo see if wholeWmeVars will be included
+    for (let j = 0; j < WMEFieldType.NumFields; ++j) {
+      if (cond.attrs[j].type != FieldType.Var) continue;
+      if (!(cond.attrs[j].v in locationInToken)) {
+        locationInToken[cond.attrs[j].v] = [i, j];
+      }
+    }
   }
   return locationInToken;
 }

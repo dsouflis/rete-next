@@ -17,7 +17,7 @@ ReturnVariable =  QualifiedProperty | cypherVariable
 
 PlainCypherCondition = CypherNode CypherRelationship*
 
-Production = "(" Condition+ "->" prodName ")"
+Production = "(" Condition+ "->" prodName (Assert | CypherCreate)? ")"
 
 Condition = MatchCondition | CypherCondition | NotCondition | YesCondition | AggregateCondition
 

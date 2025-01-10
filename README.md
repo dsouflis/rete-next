@@ -2,7 +2,7 @@
 ![Logo](./rete-next-logo-sm.png)
 Implementation of RETE, based on the C++ implementation in https://github.com/bollu/rete.
 That was based in the exposition of basic Rete in [Robert B. Doorenbos' PhD Thesis: Production Matching for Large Learning Systems](http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf).
-The original state of this project was a failthful transcription of that implementation
+The original state of this project was a faithful transcription of that implementation
 in TypeScript.
 
 ## Enhancements
@@ -160,4 +160,19 @@ The clause above results in the following WMEs being added (gensym numbers are a
 (gensym-239 SubjectOf gensym-240)
 (gensym-240 is-a King)
 (gensym-241 is-a Teacher)
+```
+
+### Assertions in productions
+Fact assertions were also added in the syntax for productions, like the
+following example:
+
+```
+( 
+ (<x> father <z>)
+ (<y> mother <z>) 
+ -> "find couples with children" 
+ (! 
+   (<x> husband <y>) 
+ ) 
+)
 ```

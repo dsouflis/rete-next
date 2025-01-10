@@ -293,14 +293,17 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     return altSpecs;
   },
 
-  //Production = "(" Condition+ "->" prodName ")"
-  Production(lParen: Node, condsNode: Node, arrow: Node, prodName: Node, rParen: Node): ProductionSpec {
+  //Production = "(" Condition+ "->" prodName (Assert | CypherCreate)? ")"
+  Production(lParen: Node, condsNode: Node, arrow: Node, prodName: Node, optAssertNode: Node, rParen: Node): ProductionSpec {
     const condsSpecs = condsNode.toSpecs();
+    const optAssert = optAssertNode.toSpecs().flatMap((x:any) => x);
     const lhs = condsSpecsToConditions(condsSpecs);
+    const rhsAssert = optAssert.length ? condsSpecsToConditions(optAssert[0].lhs) : undefined;
     const rhs = prodName.toSpecs();
     return {
       lhs,
       rhs,
+      rhsAssert,
     };
   },
 
@@ -678,6 +681,7 @@ interface NodePropertyComp {
 // lhs => CypherCreate
 export interface ProductionSpec {
   lhs: GenericCondition[],
+  rhsAssert?: GenericCondition[],
   rhs?: string,
   variables?: string[],
 }
