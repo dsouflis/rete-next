@@ -709,7 +709,7 @@ export function parseRete(input: string): ParseError | ParseSuccess {
         specs,
       });
     }
-  } catch (e) {
+  } catch (e: any) {
     return ({
       error: e.message
     });
