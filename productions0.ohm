@@ -7,7 +7,7 @@ Query = "(" Condition+ "->" (varSpecifier ("," varSpecifier)+ )? ")"
 
 Assert = "(" "!" Condition+ ")"
 
-CypherQuery = match PlainCypherCondition return  ReturnVariable ("," ReturnVariable)*
+CypherQuery = match PlainCypherCondition WhereExpression? return  ReturnVariable ("," ReturnVariable)*
 
 CypherCreate = create PlainCypherCondition MoreConditions
 
@@ -37,7 +37,15 @@ NodePropertyComparisonList = NodePropertyComparison (and NodePropertyComparisonL
 
 NodePropertyComparison = QualifiedProperty comp constSpecifier
 
-QualifiedProperty = cypherVariable "." cypherVariable
+WhereExpression = where WhereComparisonList
+
+WhereComparisonList = WhereComparison (and WhereComparisonList)*
+
+WhereComparison = WherePart comp WherePart
+
+WherePart = QualifiedProperty | constSpecifier
+
+QualifiedProperty = cypherVariable "." cypherVariable (as cypherVariable)?
 
 LabelExpression = ":" LabelTerm
 

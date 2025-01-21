@@ -277,7 +277,7 @@ describe('The Productions0 parser', () => {
 
     const input = `
     match (x)-[:on]->(y)-[:on]->(z) return x.age, z
-    Match (x)-[:on]->(y) Return x
+    Match (x)-[:on]->(y) where x.age > 10 Return x, x.age
     `;
     const reteParse = parseRete(input);
     expect('specs' in reteParse && reteParse.specs).to.ok;
@@ -290,9 +290,31 @@ describe('The Productions0 parser', () => {
     rete.add("B1", "on", "B2");
     rete.add("B2", "on", "B3");
 
-    for (const {lhs, variables} of parsed.specs) {
+    for (let i = 0; i < parsed.specs.length; i++){
+      const {lhs, variables} = parsed.specs[i];
+      console.log('Running', lhs.map(c => c.toString()));
       const stringToStringMaps = rete.query(lhs, variables!);
-      expect(stringToStringMaps.length).to.be.oneOf([1,2]);
+      expect(stringToStringMaps.length).to.equal(1);
+      switch (i) {
+        case 0: {
+          for (const entry of Object.entries(stringToStringMaps[0])) {
+            if(entry[0] === 'z') {
+              expect(entry[1]).to.equal('B3');
+            } else {
+              expect(entry[1]).to.equal('66');
+            }
+          }
+        } break;
+        default: {
+          for (const entry of Object.entries(stringToStringMaps[0])) {
+            if(entry[0] === 'x') {
+              expect(entry[1]).to.equal('B1');
+            } else {
+              expect(entry[1]).to.equal('66');
+            }
+          }
+        }
+      }
       console.log(stringToStringMaps);
     }
 

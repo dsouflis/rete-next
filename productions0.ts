@@ -8,7 +8,7 @@ import {
   CompOp,
   Condition,
   ConditionArithBinaryOp,
-  ConditionArithConst,
+  ConditionArithConst, ConditionArithExpression,
   ConditionArithTest,
   ConditionArithVar,
   Field,
@@ -187,6 +187,30 @@ function createCondSpecsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: Cypher
   return new MultipleConditions(condSpecs);
 }
 
+function whereSpecToArithExpression(whereOperand: Field | QualifiedProperty, pastConds: GenericCondition[]) {
+  if (!(whereOperand instanceof Field)) {
+    const left = whereOperand as QualifiedProperty;
+    const found = pastConds
+      .filter(c => c instanceof Condition)
+      .find((c: Condition) =>
+        c.attrs[0].type === FieldType.Var &&
+        c.attrs[0].v === left.variable &&
+        c.attrs[1].type === FieldType.Var &&
+        c.attrs[1].v === left.property
+      ) as Condition;
+    let leftVar: string | undefined;
+    if (found) {
+      leftVar = found.attrs[2].v;
+    } else {
+      leftVar = newCypherVar();
+      pastConds.push(new Condition(Field.var(left.variable), Field.constant(left.property), Field.var(leftVar)));
+    }
+    return new ConditionArithVar(leftVar);
+  } else {
+    return new ConditionArithConst(+whereOperand.v);
+  }
+}
+
 semantics.addOperation<ProductionSpec[]>('toSpecs', {
   //Productions = ProductionItem+
   Productions(specs: Node): ProductionSpec[] {
@@ -220,10 +244,27 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     } as ProductionSpec;
   },
 
-  // CypherQuery = "match" PlainCypherCondition "return" ReturnVariable ("," ReturnVariable)*
-  CypherQuery(matchNode: Node, condNode: Node, returnNode: Node, varNode: Node, commasOpt: Node, varsOpt: Node) {
-    const condsSpecs = condNode.toSpecs();
-    const lhs = condsSpecsToConditions([condsSpecs]);
+  // CypherQuery = match PlainCypherCondition WhereExpression? return ReturnVariable ("," ReturnVariable)*
+  CypherQuery(matchNode: Node, condNode: Node, whereOpt: Node, returnNode: Node, varNode: Node, commasOpt: Node, varsOpt: Node) {
+    const condsSpecs: MultipleConditions = condNode.toSpecs();
+    const specsToTranslate: any[] = [condsSpecs];
+    const whereOptSpecs = whereOpt.toSpecs();
+    let whereAdditionalSpecs = [];
+    if(whereOptSpecs.length) {
+      const whereSpecs = whereOptSpecs[0] as WhereComp[];
+      for (const whereSpec of whereSpecs) {
+        console.log(whereSpec);
+        const pastConds = condsSpecs.conds;
+        let leftOperand = whereSpecToArithExpression(whereSpec.left, pastConds);
+        let rightOperand = whereSpecToArithExpression(whereSpec.right, pastConds);
+        specsToTranslate.push(new ConditionArithTest(
+          leftOperand,
+          whereSpec.comp,
+          rightOperand,
+        ));
+      }
+    }
+    const lhs = condsSpecsToConditions([...specsToTranslate, ...whereAdditionalSpecs]);
     const varSpec = varNode.toSpecs();
     const varSpecs = varsOpt.toSpecs();
     const variables = [varSpec, ...varSpecs];
@@ -366,8 +407,39 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     } as NodePropertyComp;
   },
 
-  // QualifiedProperty = cypherVariable "." cypherVariable
-  QualifiedProperty(varNode: Node, dot: Node, propNode: Node) {
+  //WhereExpression = where WhereComparisonList
+  WhereExpression(whereNode: Node, comps: Node) {
+    const toSpecs = comps.toSpecs();
+    return toSpecs;
+  },
+
+  // WhereComparisonList = WhereComparison (and WhereComparisonList)*
+  WhereComparisonList(compNode: Node, ands: Node, compsNode: Node) {
+    const compSpecs = compNode.toSpecs();
+    const compsSpecs = compsNode.toSpecs();
+    return [compSpecs, ...compsSpecs];
+  },
+
+  // WhereComparison = WherePart comp WherePart
+  WhereComparison(propNode: Node, compNode: Node, constNode: Node) {
+    const left = propNode.toSpecs();
+    const comp = compNode.toSpecs()[0];
+    const right = constNode.toSpecs();
+    return {
+      left,
+      comp,
+      right,
+    } as WhereComp;
+  },
+
+  // WherePart = QualifiedProperty | constSpecifier
+  WherePart(part: Node) {
+    const toSpecs = part.toSpecs();
+    return toSpecs;
+  },
+
+  // QualifiedProperty = cypherVariable "." cypherVariable  (as cypherVariable)?
+  QualifiedProperty(varNode: Node, dot: Node, propNode: Node, asNode_ignored: Node, asVarNode_ignored: Node) {
     const variable = varNode.toSpecs();
     const property = propNode.toSpecs();
     return {
@@ -673,7 +745,12 @@ interface NodePropertyComp {
   property: QualifiedProperty,
   comp: CompOp,
   value: Field,
+}
 
+interface WhereComp {
+  left: QualifiedProperty | Field,
+  comp: CompOp,
+  right: QualifiedProperty | Field,
 }
 
 // lhs & variables => Query, CypherQuery
