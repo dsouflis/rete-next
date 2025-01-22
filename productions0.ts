@@ -104,15 +104,21 @@ function createCondSpecsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: Cypher
     }
     if(where?.length) {
       for (const nodePropertyComp of where) {
-        const { property, comp, value} = nodePropertyComp;
-        if(property.variable !== firstEntityVariable) {
+        const { left, comp, right} = nodePropertyComp;
+        if(!(left instanceof Field) && left.variable !== firstEntityVariable) {
           throw new Error(`Only properties of the node are permitted in node-level WHERE`);
         }
-        const valueVar = newCypherVar();
-        const condition = new Condition(Field.var(firstEntityVariable), Field.constant(property.property), Field.var(valueVar));
-        condSpecs.push(condition);
-        const conditionArithTest = new ConditionArithTest(new ConditionArithVar(valueVar), comp, fieldToArith(value));
-        condition.intraArithTests.push(conditionArithTest);
+        if(!(right instanceof Field) && right.variable !== firstEntityVariable) {
+          throw new Error(`Only properties of the node are permitted in node-level WHERE`);
+        }
+        const exprLeft = whereSpecToArithExpression(left, condSpecs);
+        const exprRight = whereSpecToArithExpression(right, condSpecs);
+        const conditionArithTest = new ConditionArithTest(exprLeft, comp, exprRight);
+        if (exprLeft instanceof ConditionArithConst || exprLeft instanceof ConditionArithConst) {
+          condSpecs[condSpecs.length - 1].intraArithTests.push(conditionArithTest);
+        } else {
+          condSpecs[condSpecs.length - 1].extraArithTests.push(conditionArithTest);
+        }
       }
     }
     if (remaining.length) {
@@ -124,7 +130,7 @@ function createCondSpecsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: Cypher
       let relationName: string | null = null;
       let relationVar: string | null = null;
       let relationProperties: PropertyKeyValuePair[] | undefined = undefined;
-      let relationWhere: NodePropertyComp[] | undefined = undefined;
+      let relationWhere: WhereComp[] | undefined = undefined;
       if(filler) {
         const {variable, labels, properties, where} = filler;
         if(variable) {
@@ -164,15 +170,21 @@ function createCondSpecsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: Cypher
         }
         if(relationWhere?.length) {
           for (const nodePropertyComp of relationWhere) {
-            const { property, comp, value} = nodePropertyComp;
-            if(property.variable !== relationVar) {
+            const { left, comp, right} = nodePropertyComp;
+            if(!(left instanceof Field) && left.variable !== relationVar) {
               throw new Error(`Only properties of the relation are permitted in relation-level WHERE`);
             }
-            const valueVar = newCypherVar();
-            const condition = new Condition(Field.var(relationVar), Field.constant(property.property), Field.var(valueVar));
-            condSpecs.push(condition);
-            const conditionArithTest = new ConditionArithTest(new ConditionArithVar(valueVar), comp, fieldToArith(value));
-            condition.intraArithTests.push(conditionArithTest);
+            if(!(right instanceof Field) && right.variable !== relationVar) {
+              throw new Error(`Only properties of the relation are permitted in relation-level WHERE`);
+            }
+            const exprLeft = whereSpecToArithExpression(left, condSpecs);
+            const exprRight = whereSpecToArithExpression(right, condSpecs);
+            const conditionArithTest = new ConditionArithTest(exprLeft, comp, exprRight);
+            if (exprLeft instanceof ConditionArithConst || exprLeft instanceof ConditionArithConst) {
+              condSpecs[condSpecs.length - 1].intraArithTests.push(conditionArithTest);
+            } else {
+              condSpecs[condSpecs.length - 1].extraArithTests.push(conditionArithTest);
+            }
           }
         }
 
@@ -189,25 +201,25 @@ function createCondSpecsFromCypherSpecs(nodeSpecs: CypherNode, relsSpecs: Cypher
 
 function whereSpecToArithExpression(whereOperand: Field | QualifiedProperty, pastConds: GenericCondition[]) {
   if (!(whereOperand instanceof Field)) {
-    const left = whereOperand as QualifiedProperty;
+    const qualifiedProperty = whereOperand as QualifiedProperty;
     const found = pastConds
       .filter(c => c instanceof Condition)
       .find((c: Condition) =>
         c.attrs[0].type === FieldType.Var &&
-        c.attrs[0].v === left.variable &&
+        c.attrs[0].v === qualifiedProperty.variable &&
         c.attrs[1].type === FieldType.Var &&
-        c.attrs[1].v === left.property
+        c.attrs[1].v === qualifiedProperty.property
       ) as Condition;
-    let leftVar: string | undefined;
+    let variable: string | undefined;
     if (found) {
-      leftVar = found.attrs[2].v;
+      variable = found.attrs[2].v;
     } else {
-      leftVar = newCypherVar();
-      pastConds.push(new Condition(Field.var(left.variable), Field.constant(left.property), Field.var(leftVar)));
+      variable = newCypherVar();
+      pastConds.push(new Condition(Field.var(qualifiedProperty.variable), Field.constant(qualifiedProperty.property), Field.var(variable)));
     }
-    return new ConditionArithVar(leftVar);
+    return new ConditionArithVar(variable);
   } else {
-    return new ConditionArithConst(+whereOperand.v);
+    return fieldToArith(whereOperand);
   }
 }
 
@@ -368,7 +380,7 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
       return createCondSpecsFromCypherSpecs(nodeSpecs, relsSpecs);
   },
 
-  //CypherNode = "(" cypherVariable? LabelExpression? PropertyKeyValueExpression? PropertyWhereExpression? ")"
+  //CypherNode = "(" cypherVariable? LabelExpression? PropertyKeyValueExpression? WhereExpression? ")"
   CypherNode(lParen: Node, variableOpt: Node, labelsOpt: Node, propertiesOpt: Node, whereOpt: Node, rParen: Node) {
     const varSpecs = variableOpt?.toSpecs();
     const labelSpecs = labelsOpt?.toSpecs()?.flatMap((x:any) => x);
@@ -380,31 +392,6 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
       properties: propertiesSpecs?.[0],
       where: whereSpecs?.[0],
     } as CypherNode;
-  },
-
-  //PropertyWhereExpression = "where" NodePropertyComparisonList
-  PropertyWhereExpression(whereNode: Node, comps: Node) {
-    const toSpecs = comps.toSpecs();
-    return toSpecs;
-  },
-
-  // NodePropertyComparisonList = NodePropertyComparison ("and" NodePropertyComparisonList)*
-  NodePropertyComparisonList(compNode: Node, ands: Node, compsNode: Node) {
-    const compSpecs = compNode.toSpecs();
-    const compsSpecs = compsNode.toSpecs();
-    return [compSpecs, ...compsSpecs];
-  },
-
-  // NodePropertyComparison = QualifiedProperty comp constSpecifier
-  NodePropertyComparison(propNode: Node, compNode: Node, constNode: Node) {
-    const property = propNode.toSpecs();
-    const comp = compNode.toSpecs()[0];
-    const value = constNode.toSpecs();
-    return {
-      property,
-      comp,
-      value,
-    } as NodePropertyComp;
   },
 
   //WhereExpression = where WhereComparisonList
@@ -544,7 +531,7 @@ semantics.addOperation<ProductionSpec[]>('toSpecs', {
     } as CypherRelPattern;
   },
 
-  //PatternFiller =  cypherVariable? LabelExpression? PropertyKeyValueExpression? PropertyWhereExpression?
+  //PatternFiller =  cypherVariable? LabelExpression? PropertyKeyValueExpression? WhereExpression?
   PatternFiller(variableOpt: Node, labelsOpt: Node, propertiesOpt: Node, whereOpt: Node) {
     const varSpecs = variableOpt?.toSpecs();
     const labelSpecs = labelsOpt?.toSpecs()?.flatMap((x:any) => x);
@@ -707,7 +694,7 @@ export interface CypherNode {
   variable?: string,
   labels?: string[],
   properties?: PropertyKeyValuePair[],
-  where?: NodePropertyComp[],
+  where?: WhereComp[],
 }
 
 export interface CypherRelPattern {
@@ -739,12 +726,6 @@ interface PropertyKeyValuePair {
 interface QualifiedProperty {
   variable: string,
   property: string,
-}
-
-interface NodePropertyComp {
-  property: QualifiedProperty,
-  comp: CompOp,
-  value: Field,
 }
 
 interface WhereComp {

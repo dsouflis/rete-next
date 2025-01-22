@@ -23,19 +23,13 @@ Condition = MatchCondition | CypherCondition | NotCondition | YesCondition | Agg
 
 CypherCondition = cypher "{" CypherNode CypherRelationship* "}"
 
-CypherNode = "(" cypherVariable? LabelExpression? PropertyKeyValueExpression? PropertyWhereExpression? ")"
+CypherNode = "(" cypherVariable? LabelExpression? PropertyKeyValueExpression? WhereExpression? ")"
 
 PropertyKeyValueExpression = "{" PropertyKeyValuePair PropertyKeyValuePairList* "}"
 
 PropertyKeyValuePairList =  ("," PropertyKeyValuePair)+
 
 PropertyKeyValuePair = cypherVariable ":" constSpecifier
-
-PropertyWhereExpression = where NodePropertyComparisonList
-
-NodePropertyComparisonList = NodePropertyComparison (and NodePropertyComparisonList)*
-
-NodePropertyComparison = QualifiedProperty comp constSpecifier
 
 WhereExpression = where WhereComparisonList
 
@@ -57,7 +51,7 @@ LabelConjunction = "&" LabelTerm
 
 labelIdentifier = (alnum | "_")+
 
-cypherVariable = alnum+
+cypherVariable = (alnum | "_")+
 
 CypherRelationship = RelationshipPattern CypherNode
 
@@ -67,7 +61,7 @@ FullPattern =
    "<-[" PatternFiller "]-"
  | "-[" PatternFiller "]->"
 
-PatternFiller =  cypherVariable? LabelExpression? PropertyKeyValueExpression? PropertyWhereExpression?
+PatternFiller =  cypherVariable? LabelExpression? PropertyKeyValueExpression? WhereExpression?
 
 abbreviatedRelationship = "<--" | "-->"
 
