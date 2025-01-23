@@ -16,17 +16,15 @@ It is important to note that only a subset of the MATCH syntax is covered.
 
 - First of all, only fixed-length and non-linear patterns are covered.
 - Only label conjunctions are supported for nodes.
-- Node property key-value expressions are supported.
-- WHERE clauses in node patterns (simple conditions) are supported.
+- Node and relation property key-value expressions are supported.
+- WHERE clauses (simple conditions) are supported.
 - Only a single label is supported for relations, pending implementation of reified relationships 
 
 ## What is planned to be covered
-- Label property key-value expressions for relationships. 
  Some way needs to be devised to distinguish direct relations (i.e. 
 ``(_ rel _)``) that do not have properties and can encode a single label, in usual knowledge graph fashion, vs. reified relations (i.e
 ``(_ <rel> _) (<rel> <prop> _)``) where properties and multiple labels can be encoded.
-- WHERE clauses in relationship patterns (simple conditions)
-- Standalone WHERE clauses (simple conditions)
+- WHERE clauses with nested calculations
 
 ## What may be covered in the future
 - Variable-length patterns may be covered by pre-processing transitive closures. There is no current plan for covering 
