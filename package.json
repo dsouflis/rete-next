@@ -21,21 +21,25 @@
     "node-option": [
       "import=tsx"
     ],
-    "extension": ["ts"],
+    "extension": [
+      "ts"
+    ],
     "spec": [
       "spec/**/*.spec.ts"
     ]
   },
   "devDependencies": {
-    "@types/node": "^20.14.10",
-    "globals": "^15.8.0",
-    "typescript": "^5.5.3",
     "@ohm-js/cli": "^1.0.1",
-    "chai": "^4.2.0",
     "@types/chai": "^4.2.11",
     "@types/mocha": "^10.0.0",
+    "@types/node": "^20.14.10",
+    "@types/sinon": "^17.0.3",
+    "chai": "^4.2.0",
+    "globals": "^15.8.0",
     "mocha": "^10.1.0",
-    "tsx": "^3.11.0"
+    "sinon": "^19.0.2",
+    "tsx": "^3.11.0",
+    "typescript": "^5.5.3"
   },
   "dependencies": {
     "ohm-js": "^17.1.0"
