@@ -282,7 +282,6 @@ describe('The library', () => {
 
     let incTokens;
     incTokens= rete.getIncompleteTokensForProduction("hunting something that eats something");
-    console.log('New Conditions 1:')
 
     expect(incTokens.length).to.equal(1);
     expect(incTokens[0].toString()).to.equal("(Elmer hunts Bugs),(Bugs eats <_0>)");

@@ -46,8 +46,7 @@ describe('The Productions0 parser', () => {
       const wme = rete.add('a', 'rel', 'b');
       rete.add(wme, 'date', '2024-09-30');
       expect(p!!.items.length).to.equal(1);
-      p!!.items.forEach(t => console.log(t.toString()));
-
+      // p!!.items.forEach(t => console.log(t.toString()));
     }
   });
 
@@ -58,20 +57,17 @@ describe('The Productions0 parser', () => {
     console.log(reteParse);
     expect('specs' in reteParse && reteParse.specs).to.ok;
 
-    console.log("adding production\n");
     const rete = new Rete();
     const parsed = reteParse as ParseSuccess;
-
     for (const {lhs, rhs} of parsed.specs) {
       if(!rhs) return;
+      console.log("adding production\n", lhs.map(c => c.toString()) + ' ⇒ ', rhs);
       rete.addProduction(lhs, rhs);
     }
 
     const p = rete.productions.find(p => p.rhs === "prod1");
 
     expect(p).to.exist;
-
-    console.log("added production\n");
 
     rete.add("B1", "on", "B2");
     expect(p!!.items.length).to.equal(1);
@@ -86,7 +82,7 @@ describe('The Productions0 parser', () => {
     console.log('====can parse productions with simple conditions and constraints, and add them to a Rete===');
     const input = `( (<x> weight <y>) (<y> < 50) -> "prod1")`;
     const reteParse = parseRete(input);
-    console.log(reteParse);
+
     expect('specs' in reteParse && reteParse.specs).to.ok;
 
     console.log("adding production\n");
@@ -117,7 +113,7 @@ describe('The Productions0 parser', () => {
     console.log("====parse productions with negative conditions, and add them to a Rete:====\n");
     const input = `( (<x> on <y>) -{(<z> on <x>)} -> "prod1")`;
     const reteParse = parseRete(input);
-    console.log(reteParse);
+
     expect('specs' in reteParse && reteParse.specs).to.ok;
 
     console.log("adding production\n");
@@ -170,7 +166,7 @@ describe('The Productions0 parser', () => {
     console.log("====parse productions with positive conditions, and add them to a Rete:====\n");
     const input = `( (<x> on <y>) +{(<z> on <x>)} -> "prod1")`;
     const reteParse = parseRete(input);
-    console.log(reteParse);
+
     expect('specs' in reteParse && reteParse.specs).to.ok;
 
     console.log("adding production\n");
@@ -214,7 +210,7 @@ describe('The Productions0 parser', () => {
 
     const input = `( (<x> on <y>) (<cn> <- #sum(<c>)) from {(<y> order <c>)} -> "prod1")`;
     const reteParse = parseRete(input);
-    console.log(reteParse);
+
     expect('specs' in reteParse && reteParse.specs).to.ok;
 
     console.log("adding production\n");
@@ -253,7 +249,7 @@ describe('The Productions0 parser', () => {
 
     const input = `((<x> on <y>) (<y> on <z>) -> <x>,<z>) ((<x> on <y>) -> <x>,<y>)`;
     const reteParse = parseRete(input);
-    console.log(reteParse);
+
     expect('specs' in reteParse && reteParse.specs).to.ok;
 
     console.log("running query\n");
@@ -439,7 +435,7 @@ describe('The Productions0 parser', () => {
 
     const inputProduction = `( (<x> father <z>) (<y> mother <z>) -> "find couples with children" (! (<x> husband <y>) ) )`;
     const reteParseProduction = parseRete(inputProduction);
-    console.log(reteParseProduction);
+
     expect('specs' in reteParseProduction && reteParseProduction.specs).to.ok;
 
     console.log("adding production\n");

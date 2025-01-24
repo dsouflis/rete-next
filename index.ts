@@ -1,79 +1,5 @@
 import {strict} from 'assert';
 
-// Production Matching for Large Learning Systems
-// http://reports-archive.adm.cs.cmu.edu/anon/1995/CMU-CS-95-113.pdf
-// WM: working memory - current situation of the system
-//  - WME: working memory element
-// eg. block world:
-// w1: (B1 ^on B2)
-// w2: (B1 ^on B3)
-// w3: (B1 ^color red)
-// w4: (B2 ^on table)
-// w5: (B2 ^left-of B3)
-// w6: (B2 ^color blue)
-// w7: (B3 ^left-of B4)
-// w8: (B3 ^on table)
-// w9: (B3 ^color red)
-// wn: (id ^attr val)
-
-
-// production can contain varibles, in angle brackets: <x>
-// (find-stack-of-two-blocks-to-the-left-of-a-red-block
-// (<x> ^on <y>) (<y> ^left-of <z>) (<z> ^color red) --> ... RHS ... )
-// eg. C1: (<x> ^on <y>)
-//     C2: (<y> ^left-of <z>)
-//     C3: (<z> %color red)
-
-
-// A production can match with the current WM if all the conditions match
-// with intems in WM, with variables bound consistently.
-// Create dataflow network for conditions.
-// alpha memory (AM): current set of working memory that pass *all* tests of a condition
-//   eg. AM for [C1: (<x> ^on <y>)] contains (w1, w2, w4, w8), since they have (_ ^on _).
-//       AM for [C2: (<y> ^left-of <z>)] contains (w5, w7)
-
-
-// beta memory: join nodes, beta memories.
-// join nodes perform consistency checks _between_ conditions.
-// beta memory stores partial instantiation of production: combinations of WMEs which
-//   match some but not all conditions of a production.
-
-// alpha network also performs _intra-condition_ consistency tests: eg: (<x> ^on <x>)
-// Tests can be any bolean operation.
-
-
-// current working memory: relation / table(?)
-// production: query
-// constant test: SELECT
-// If a production has c1, c2, ... cn,
-//    the beta nodes perform _intermediate_ JOINS c1 x c2 .. x ck for k < n
-
-// the SELECT and JOINs are updated whenever the working memory (table)
-// is updated.
-// working memory -> alpha network -> beta network.
-// activation of node from a node in the beta network is called LEFT ACTIVATION
-// activation of node from a node in the alpha network is called RIGHT ACTIVATION
-
-// So a beta join node can have 2 types of activations:
-//    - right activation | WME is added to the alpha memory that feeds the join node
-//    - left activation  | a token is added into beta memory by a parent.
-
-// Why is Rete fast?
-// 1. state-saving: after each change to WM, alpha and beta memory states are saved
-// 2. sharing of nodes: sharing can occur in the alpha network if multiple productions
-//    have the same condition. Sharing can occur in beta network if two productions
-//    have similar first few conditions.
-
-// data WME id attr val = WME id attr val deriving(Eq, Ord)
-// brackets :: [String] -> String; brackets s = "("<>List.intercalate " " s<>")"
-// instance (Show id, Show attr, Show val) => Show (WME id attr val) where
-//   show (WME a b c) = brackets [show a, "^" <> show b, show c]
-//
-// -- PM: production memory
-// data Production cond act = Production cond act deriving (Eq, Ord)
-// instance (Show cond, Show act) => Show (Production cond act) where
-//   show (Production cond act) = brackets [show cond, "-->", show act]
-
 let idCounter = 1;
 
 class Identifiable {
@@ -1852,7 +1778,7 @@ function build_or_share_fuzzy_test_node(r: Rete, parent: TestNode, fuzzyVariable
 }
 
 // pg 35: dataflow version
-function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) {
+export function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) { //exported for tests
   let currentNode = r.alpha_top;
   const attr = c.attrs[WMEFieldType.Attr];
   const val = c.attrs[WMEFieldType.Val];

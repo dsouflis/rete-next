@@ -1,24 +1,14 @@
 import {expect} from 'chai';
 import {
   Condition,
-  ConditionArithConst,
-  ConditionArithTest,
-  ConditionArithVar,
-  ConditionSymbolicConst,
-  ConstTestNode,
-  Field, FuzzySystem,
-  FuzzyVariable,
-  FuzzyWME,
-  NegativeCondition,
+  Field,
   Rete,
-  TestNode, Token,
+  Token,
   WME,
 } from '../index';
 import {
   ValidityLeftClosed,
   ValidityLeftOpen,
-  Context,
-  combineValidities,
   combineSetsOfValidities,
   Validity
 } from '../validity';

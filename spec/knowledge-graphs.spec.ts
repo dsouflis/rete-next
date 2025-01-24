@@ -15,7 +15,7 @@ import {
   WME,
 } from '../index';
 
-describe('The library', () => {
+describe('The library using ChatGPT', () => {
   it('can be fed knowledge graphs from ChatGPT', () => {
     console.log('User:',`Given the text of the Holy Bible, extract up to 30 knowledge triples, by order of chronology,
       for parent-child relations between people, in the form of \`person,relation,person\` on each line.
