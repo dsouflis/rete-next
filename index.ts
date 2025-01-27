@@ -85,6 +85,7 @@ class AlphaMemory extends Identifiable{
 export abstract class TestNode { //ds: Exported to facilitate unit tests
   output_memory: AlphaMemory | null;
   children: TestNode[] = [];
+  hashtable: {[f:number]:{[sym:string]:TestNode[]}} = {};
   parent: TestNode | null = null;
 
   constructor(
@@ -1203,6 +1204,18 @@ function const_test_node_activation(node: TestNode, w: WME, add: boolean) {
   if (node.output_memory) {
     alpha_memory_activation(node.output_memory, node.wme_to_propagate(w), add);
   }
+  for(let i = 0; i < w.fields.length; i++) {
+    if (typeof w.fields[i] === 'string') {
+      const hashtableElementElement = node.hashtable[i]?.[w.fields[i] as string];
+      if (hashtableElementElement) {
+        for (const c of hashtableElementElement) {
+          if (const_test_node_activation(c, w, add)) {
+            break;
+          }
+        }
+      }
+    }
+  }
   for (const c of node.children) {
     const_test_node_activation(c, w, add);
   }
@@ -1678,12 +1691,14 @@ function build_or_share_constant_test_node(
   f: WMEFieldType,
   sym: string
 ) {
-  strict.strict(parent != null, 'Parent cannot be null');
   // look for pre-existing node
-  for (const child of parent.children) {
-    if(child instanceof ConstTestNode) {
-      if (child.field_to_test == f && child.field_must_equal == sym) {
-        return child;
+  const hashtableElementElement = parent.hashtable[f]?.[sym];
+  if (hashtableElementElement) {
+    for (const child of hashtableElementElement) {
+      if (child instanceof ConstTestNode) {
+        if (child.field_to_test == f && child.field_must_equal == sym) {
+          return child;
+        }
       }
     }
   }
@@ -1691,7 +1706,13 @@ function build_or_share_constant_test_node(
   const newnode = new ConstTestNode(f, sym, null, parent);
   r.consttestnodes.push(newnode);
   if(Rete.debug) console.log(`build_or_share_constant_test_node newconsttestnode: %${newnode}`);
-  parent.children.push(newnode);
+  if(!parent.hashtable[f]) {
+    parent.hashtable[f] = {};
+  }
+  if(!parent.hashtable[f][sym]) {
+    parent.hashtable[f][sym] = [];
+  }
+  parent.hashtable[f][sym].push(newnode);
   // newnode->field_to_test = f; newnode->field_must_equal = sym;
   // newnode->output_memory = nullptr;
   // newnode->children = nullptr;
@@ -1777,7 +1798,7 @@ function build_or_share_fuzzy_test_node(r: Rete, parent: TestNode, fuzzyVariable
   return newnode;
 }
 
-// pg 35: dataflow version
+// page 36: hash version for const test nodes, integrated with: pg 35: dataflow version for other nodes
 export function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) { //exported for tests
   let currentNode = r.alpha_top;
   const attr = c.attrs[WMEFieldType.Attr];
@@ -1816,11 +1837,6 @@ export function build_or_share_alpha_memory_dataflow(r: Rete, c: Condition) { //
     }
   }
   return currentNode.output_memory;
-}
-
-// page 36: hash version
-function build_or_share_alpha_memory_hashed(r: Rete, c: Condition) {
-  strict.strict(false, "unimplemented");
 }
 
 const dummyWME = new WME('#dummy', '#dummy', '#dummy');

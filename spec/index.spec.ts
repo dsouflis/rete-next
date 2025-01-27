@@ -254,10 +254,9 @@ describe('The library', () => {
     const foundAlphaForOn = rete.consttestnodes.filter((x: TestNode) => x instanceof ConstTestNode).find((x: ConstTestNode) => x.field_to_test === 1 && x.field_must_equal === "on")?.output_memory;
     expect(foundAlphaForOn?.items?.length).to.equal(3);
 
-    const foundAlphaForColor = rete.consttestnodes
-      .filter((x: TestNode) => x instanceof ConstTestNode).find((x: ConstTestNode) => x.field_to_test === 1 && x.field_must_equal === "color")
-      ?.children?.filter((x: TestNode) => x instanceof ConstTestNode)?.find((x: ConstTestNode) => x.field_to_test === 2 && x.field_must_equal === "red")
-      ?.output_memory;
+    const redAttributeTestNode = rete.consttestnodes
+      .filter((x: TestNode) => x instanceof ConstTestNode).find((x: ConstTestNode) => x.field_to_test === 1 && x.field_must_equal === "color");
+    const foundAlphaForColor = redAttributeTestNode?.hashtable[2]?.["red"]?.[0]?.output_memory;
     expect(foundAlphaForColor?.items?.length).to.equal(1);
 
     console.log("====\n");
