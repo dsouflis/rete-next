@@ -453,8 +453,8 @@ describe('The Productions0 parser', () => {
       const variablesInToken = evalVariablesInToken(Object.keys(p1.locationsOfAllVariablesInConditions), p1.locationsOfAllVariablesInConditions, token);
       console.log(variablesInToken);
       const wmes = rete.addWMEsFromConditions(rhsAssert!, variablesInToken);
-      if (wmes.length) {
-        console.log('Added', wmes.map(w => w.toString()).join(' '));
+      if (wmes[0].length) {
+        console.log('Added', wmes[0].map(w => w.toString()).join(' '));
       }
     }
     const husbandFactsFound = rete.working_memory.filter(w => w.fields[1] === 'husband');

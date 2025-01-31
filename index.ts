@@ -984,12 +984,13 @@ export class Rete {
   static debug: boolean = false;
 }
 
-function add_wmes_from_conditions(r: Rete, conds: GenericCondition[], variableValues?: StringToStringMap): WME[] {
+function add_wmes_from_conditions(r: Rete, conds: GenericCondition[], variableValues?: StringToStringMap): [WME[], WME[]] {
+  const ret: [WME[], WME[]] = [[],[]];
   //Find all "as" variables
   const condVars: {[variable: string] : Condition} = {};
   for (const cond of conds) {
     strict.strict(
-      !(cond instanceof NegativeCondition) && !(cond instanceof AggregateCondition),
+      !(cond instanceof PositiveCondition) && !(cond instanceof NegativeCondition) && !(cond instanceof AggregateCondition),
       'Only plain Conditions are allowed'
     );
 
@@ -1058,7 +1059,6 @@ function add_wmes_from_conditions(r: Rete, conds: GenericCondition[], variableVa
   //add WMEs one by one, replacing "as" variables of previous facts
   const remainingConditions = plainConditions.filter(c => !orderedConditionsByDepth.includes(c));
   const wmeVars: {[variable: string] : WME | null} = Object.fromEntries(Object.entries(condVars).map(([v,_]) => [v, null]));
-  const ret: WME[] = [];
   for (const cond of [...orderedConditionsByDepth, ...remainingConditions]) {
     const values: any[] = [];
     for (const attr of cond.attrs) {
@@ -1073,9 +1073,14 @@ function add_wmes_from_conditions(r: Rete, conds: GenericCondition[], variableVa
     }
     const added = r.add(values[0], values[1], values[2]);
     if (added) {
-      ret.push(added);
+      ret[0].push(added);
       if (cond.wholeWmeVar) {
         wmeVars[cond.wholeWmeVar] = added;
+      }
+    } else {
+      const foundWME = r.findWME(values[0], values[1], values[2]);
+      if(foundWME) {
+        ret[1].push(foundWME);
       }
     }
   }
@@ -1622,7 +1627,7 @@ export class AggregateCondition extends Condition {
   }
 }
 
-export type GenericCondition = Condition | NegativeCondition | AggregateCondition;
+export type GenericCondition = Condition | NegativeCondition| PositiveCondition | AggregateCondition;
 
 // implicitly defined on pg 35
 function lookup_earlier_cond_with_field(
