@@ -8,7 +8,7 @@ import {
   CompOp,
   Condition,
   ConditionArithBinaryOp,
-  ConditionArithConst, ConditionArithExpression,
+  ConditionArithConst,
   ConditionArithTest,
   ConditionArithVar,
   Field,
