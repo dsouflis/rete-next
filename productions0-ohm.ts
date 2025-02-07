@@ -3,7 +3,7 @@ Productions = ProductionItem+
 
 ProductionItem = Production | Query | CypherQuery | Assert | CypherCreate
 
-Query = "(" Condition+ "->" (varSpecifier ("," varSpecifier)+ )? ")"
+Query = "(" Condition+ "->" (varSpecifier ("," varSpecifier)? )? ")"
 
 Assert = "(" "!" Condition+ ")"
 

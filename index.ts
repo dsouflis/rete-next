@@ -1178,10 +1178,6 @@ function get_incomplete_tokens_for_production(r: Rete, rhs: string): Condition[]
       conditionsArray.push(newCondition);
     }
   }
-  // console.log('New Conditions:')
-  // for (const conditionsArray of conditionsArrays) {
-  //   console.log(conditionsArray.map(c => c.toString()).join(' '));
-  // }
   return conditionsArrays;
 }
 
