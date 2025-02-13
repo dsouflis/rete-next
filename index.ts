@@ -446,8 +446,8 @@ export class Token {
     return s;
   }
 
-  toArray() {
-    function toArrayAux(t: Token | null, acc: WME[]) {
+  toArray(): WME[] {
+    function toArrayAux(t: Token | null, acc: WME[]): WME[] {
       if(!t) return acc;
       return toArrayAux(t.parent, [t.wme, ...acc]);
     }
