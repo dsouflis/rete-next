@@ -77,7 +77,7 @@ MathExpr = MatchSpecifier
 
 op = "+" | "-" | "*" | "/"
 
-constSpecifier = (alnum | "-" | "_")+ | quotedConst | comp
+constSpecifier = (alnum | "-" | "_" | ".")+ | quotedConst | comp
 
 delimiter1 =  "\\""
 

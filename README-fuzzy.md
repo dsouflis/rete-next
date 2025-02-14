@@ -4,9 +4,9 @@ Interface FuzzyVariable contains the fuzzification/defuzzification logic, for a 
 for a set of fuzzy values (e.g. "poor", "mediocre", "excellent"). Implementations of FuzzyVariable can 
 be added to Rete with the operation addFuzzyVariable.
 
-Conditions of the form (<ident> fuzzy-var fuzzy-val), where fuzzy-var is a fuzzy variable known to Rete and fuzzy-val
+Conditions of the form (identifier fuzzy-var fuzzy-val), where fuzzy-var is a fuzzy variable known to Rete and fuzzy-val
 is a fuzzy value for that fuzzy variable, are treated specially. They produce a FuzzyTestNode, whose operation will be
-explained shortly. WMEs of the form (<ident> fuzzy-var val), where fuzzy-var is a fuzzy variable known to Rete and 
+explained shortly. WMEs of the form (identifier fuzzy-var val), where fuzzy-var is a fuzzy variable known to Rete and 
 val is a number, are treated by the FuzzyTestNode. Note that if one uses a fuzzy-var in the attribute position in a 
 condition, that will create a normal constant check in the α-network, and WMEs with a symbol value in the value 
 position can be matched as usual. The only special case is when both the attribute and the value indicate that the
