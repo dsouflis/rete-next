@@ -927,10 +927,10 @@ export class Rete {
     addWME(this, w, true);
   }
 
-  add(id: any, attr: any, val: any): WME | null {
+  add(id: any, attr: any, val: any, mu: number | undefined = undefined): WME | null {
     const found = this.findWME(id, attr, val);
     if(!found) {
-      const wme = new WME(id, attr, val);
+      const wme = mu === undefined ? new WME(id, attr, val) : new FuzzyWME(id, attr, val, mu);
       this.addWME(wme);
       return wme;
     }
@@ -977,14 +977,19 @@ export class Rete {
     return fuzzySystem.isFuzzyValue(fuzzyValue);
   }
 
-  addWMEsFromConditions(conds: GenericCondition[], variableValues?: StringToStringMap) {
-    return add_wmes_from_conditions(this, conds, variableValues);
+  addWMEsFromConditions(conds: GenericCondition[], variableValues?: StringToStringMap, mu: number | undefined = undefined) {
+    return add_wmes_from_conditions(this, conds, variableValues, mu);
   }
 
   static debug: boolean = false;
 }
 
-function add_wmes_from_conditions(r: Rete, conds: GenericCondition[], variableValues?: StringToStringMap): [WME[], WME[]] {
+function add_wmes_from_conditions(
+  r: Rete,
+  conds: GenericCondition[],
+  variableValues?: StringToStringMap,
+  mu: number | undefined = undefined,
+  ): [WME[], WME[]] {
   const ret: [WME[], WME[]] = [[],[]];
   //Find all "as" variables
   const condVars: {[variable: string] : Condition} = {};
@@ -1071,7 +1076,7 @@ function add_wmes_from_conditions(r: Rete, conds: GenericCondition[], variableVa
         values.push(attr.v);
       }
     }
-    const added = r.add(values[0], values[1], values[2]);
+    const added = r.add(values[0], values[1], values[2], mu);
     if (added) {
       ret[0].push(added);
       if (cond.wholeWmeVar) {
