@@ -65,7 +65,9 @@ class MultiplicativeFuzzySystem implements FuzzySystem {
   }
 
   computeDisjunction(...μs: number[]): number {
-    return 0; //should be x0 + x1 + ... xn - x0*x1*x[n-1] - ... + ... - ... up to x0*x1*xn
+    //x0 + x1 + ... xn - x0*x1*x[n-1] - ... + ... - ... up to x0*x1*xn
+    const sum = μs.reduce((x, y) => x + y, 0);
+    return sum - this.computeConjunction(...μs);
   }
 }
 

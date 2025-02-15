@@ -197,7 +197,8 @@ export class FuzzyTestNode extends TestNode {
   }
 
   wme_to_propagate(w: WME): WME {
-    const normalized = parseFloat(w.fields[WMEFieldType.Val]);
+    const mu = (w instanceof FuzzyWME) ? w.μ : 1;
+    const normalized = parseFloat(w.fields[WMEFieldType.Val]) * mu;
     const μ = this.fuzzySystem.computeMembershipValueForFuzzyValue(this.fuzzyValue, normalized);
     return new FuzzyWME(w.fields[WMEFieldType.Ident], this.fuzzyVariable, this.fuzzyValue, μ);
   }
