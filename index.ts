@@ -192,15 +192,21 @@ export class FuzzyTestNode extends TestNode {
 
   testWme(w: WME): boolean {
     if(w.fields[WMEFieldType.Attr] !== this.fuzzyVariable) return false;
-    if(Number.isNaN(parseFloat(w.fields[WMEFieldType.Val]))) return false;
+    const valField = w.fields[WMEFieldType.Val];
+    if(Number.isNaN(parseFloat(valField)) && !this.fuzzySystem.isFuzzyValue(valField)) return false;
     return true;
   }
 
   wme_to_propagate(w: WME): WME {
     const mu = (w instanceof FuzzyWME) ? w.μ : 1;
-    const normalized = parseFloat(w.fields[WMEFieldType.Val]) * mu;
-    const μ = this.fuzzySystem.computeMembershipValueForFuzzyValue(this.fuzzyValue, normalized);
-    return new FuzzyWME(w.fields[WMEFieldType.Ident], this.fuzzyVariable, this.fuzzyValue, μ);
+    const valField = w.fields[WMEFieldType.Val];
+    if(this.fuzzySystem.isFuzzyValue(valField)) {
+      return new FuzzyWME(w.fields[WMEFieldType.Ident], this.fuzzyVariable, this.fuzzyValue, mu);
+    } else {
+      const normalized = parseFloat(w.fields[WMEFieldType.Val]) * mu;
+      const μ = this.fuzzySystem.computeMembershipValueForFuzzyValue(this.fuzzyValue, normalized);
+      return new FuzzyWME(w.fields[WMEFieldType.Ident], this.fuzzyVariable, this.fuzzyValue, μ);
+    }
   }
 
   toString(): string {
