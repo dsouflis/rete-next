@@ -179,38 +179,38 @@ export class IntraTestNode extends TestNode {
 }
 
 export class FuzzyTestNode extends TestNode {
-  fuzzyVariable: string;
+  fuzzyVariableName: string;
   fuzzyValue: string;
-  fuzzySystem: FuzzyVariable;
+  fuzzyVariable: FuzzyVariable;
 
-  constructor(fuzzySystem: FuzzyVariable, fuzzyVariable: string, fuzzyValue: string, output_memory: AlphaMemory | null, parent: TestNode) {
+  constructor(fuzzyVariable: FuzzyVariable, fuzzyVariableName: string, fuzzyValue: string, output_memory: AlphaMemory | null, parent: TestNode) {
     super(output_memory);
-    this.fuzzySystem = fuzzySystem;
     this.fuzzyVariable = fuzzyVariable;
+    this.fuzzyVariableName = fuzzyVariableName;
     this.fuzzyValue = fuzzyValue;
   }
 
   testWme(w: WME): boolean {
-    if(w.fields[WMEFieldType.Attr] !== this.fuzzyVariable) return false;
+    if(w.fields[WMEFieldType.Attr] !== this.fuzzyVariableName) return false;
     const valField = w.fields[WMEFieldType.Val];
-    if(Number.isNaN(parseFloat(valField)) && !this.fuzzySystem.isFuzzyValue(valField)) return false;
+    if(Number.isNaN(parseFloat(valField)) && !this.fuzzyVariable.isFuzzyValue(valField)) return false;
     return true;
   }
 
   wme_to_propagate(w: WME): WME {
     const mu = (w instanceof FuzzyWME) ? w.μ : 1;
     const valField = w.fields[WMEFieldType.Val];
-    if(this.fuzzySystem.isFuzzyValue(valField)) {
-      return new FuzzyWME(w.fields[WMEFieldType.Ident], this.fuzzyVariable, this.fuzzyValue, mu);
+    if(this.fuzzyVariable.isFuzzyValue(valField)) {
+      return new FuzzyWME(w.fields[WMEFieldType.Ident], this.fuzzyVariableName, this.fuzzyValue, mu);
     } else {
       const normalized = parseFloat(w.fields[WMEFieldType.Val]) * mu;
-      const μ = this.fuzzySystem.computeMembershipValueForFuzzyValue(this.fuzzyValue, normalized);
-      return new FuzzyWME(w.fields[WMEFieldType.Ident], this.fuzzyVariable, this.fuzzyValue, μ);
+      const μ = this.fuzzyVariable.computeMembershipValueForFuzzyValue(this.fuzzyValue, normalized);
+      return new FuzzyWME(w.fields[WMEFieldType.Ident], this.fuzzyVariableName, this.fuzzyValue, μ);
     }
   }
 
   toString(): string {
-    return "(fuzzy-test " + this.fuzzyVariable + " " + this.fuzzyValue + ")";
+    return "(fuzzy-test " + this.fuzzyVariableName + " " + this.fuzzyValue + ")";
   }
 }
 
