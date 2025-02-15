@@ -918,7 +918,7 @@ export class Rete {
   // presupposes knowledge of a collection of WMEs
   working_memory: WME[] = [];
 
-  fuzzySystems: FuzzyVariable[] = [];
+  fuzzyVariables: FuzzyVariable[] = [];
 
   constructor() {
     this.alpha_top = new DummyTestNode();
@@ -965,22 +965,22 @@ export class Rete {
   }
 
   addFuzzyVariable(fs: FuzzyVariable) {
-    this.fuzzySystems.push(fs);
+    this.fuzzyVariables.push(fs);
   }
 
-  isFuzzySystem(fsn: string) {
-    return !!this.fuzzySystems.find(fs => fs.getName() === fsn);
+  isFuzzyVariable(fsn: string) {
+    return !!this.fuzzyVariables.find(fs => fs.getName() === fsn);
   }
 
-  getFuzzySystem(fsn: string) {
-    const found = this.fuzzySystems.find(fs => fs.getName() === fsn);
-    strict.strict(found, `Fuzzy variable ${fsn} was not found on any Fuzzy system`);
+  getFuzzyVariable(fsn: string) {
+    const found = this.fuzzyVariables.find(fs => fs.getName() === fsn);
+    strict.strict(found, `Fuzzy variable ${fsn} was not found`);
     return found;
   }
 
   isFuzzyDomainVariable(fuzzyVariable: string, fuzzyValue: string) {
-    if(!this.isFuzzySystem(fuzzyVariable)) return false;
-    const fuzzySystem = this.getFuzzySystem(fuzzyVariable);
+    if(!this.isFuzzyVariable(fuzzyVariable)) return false;
+    const fuzzySystem = this.getFuzzyVariable(fuzzyVariable);
     return fuzzySystem.isFuzzyValue(fuzzyValue);
   }
 
@@ -1804,7 +1804,7 @@ function build_or_share_fuzzy_test_node(r: Rete, parent: TestNode, fuzzyVariable
     }
   }
   // build a new node
-  const newnode = new FuzzyTestNode(r.getFuzzySystem(fuzzyVariable), fuzzyVariable, fuzzyValue, null, parent);
+  const newnode = new FuzzyTestNode(r.getFuzzyVariable(fuzzyVariable), fuzzyVariable, fuzzyValue, null, parent);
   r.consttestnodes.push(newnode);
   if(Rete.debug) console.log(`build_fuzzy_test_node_if_needed fuzzytestnode: %${newnode}\n`);
   parent.children.push(newnode);
