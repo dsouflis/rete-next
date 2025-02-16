@@ -197,8 +197,7 @@ export class FuzzyTestNode extends TestNode {
   }
 
   wme_to_propagate(w: WME): WME {
-    const mu = (w instanceof FuzzyWME) ? w.μ : 1;
-    const normalized = parseFloat(w.fields[WMEFieldType.Val]) * mu;
+    const normalized = parseFloat(w.fields[WMEFieldType.Val]);
     const μ = this.fuzzyVariable.computeMembershipValueForFuzzyValue(this.fuzzyValue, normalized);
     return new FuzzyWME(w.fields[WMEFieldType.Ident], this.fuzzyVariableName, this.fuzzyValue, μ);
   }
@@ -920,7 +919,22 @@ export class Rete {
   }
 
   findWME(id: any, attr: any, val: any) {
-    const found = this.working_memory.find(w => w.fields[0] === id && w.fields[1] === attr && w.fields[2] === val);
+    function matchStrictStringOrApproximateNumeric(w) {
+      const firstTwoFieldsEqual = w.fields[0] === id && w.fields[1] === attr;
+      if (!firstTwoFieldsEqual) {
+        return false;
+      }
+      if (w.fields[2] === val) {
+        return true;
+      }
+      const possiblyNumberVal = parseFloat(w.fields[2]);
+      const possiblyNumberPromptVal = parseFloat(val);
+      if (Number.isNaN(possiblyNumberVal) || Number.isNaN(possiblyNumberPromptVal)) {
+        return false;
+      }
+      return Math.abs(possiblyNumberVal - possiblyNumberPromptVal) < 1e-6;
+    };
+    const found = this.working_memory.find(w => matchStrictStringOrApproximateNumeric(w));
     return found;
   }
 
